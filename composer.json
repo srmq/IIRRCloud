@@ -1,0 +1,20 @@
+{
+    "name": "srmq/iirr-cloud",
+    "description": "Cloud Service for the Intelligent Irrigator (IIRR)",
+    "type": "project",
+    "require": {
+        "monolog/monolog": "^1.24",
+        "slim/slim": "^3.12",
+        "relay/relay": "2.x@dev",
+        "middlewares/http-authentication": "^1.1",
+        "middlewares/request-handler": "^1.4",
+        "middlewares/client-ip": "^1.1"
+    },
+    "license": "GNU Affero General Public Licence, as published by the Free Software Foundation (FSF), either version 3 of the License, or (at your option) any later version published by the FSF.",
+    "authors": [
+        {
+            "name": "Sergio Queiroz",
+            "email": "srmq@srmq.org"
+        }
+    ]
+}
