@@ -25,11 +25,17 @@ use \Throwable;
 
 namespace iirrc\errors;
 
-class ExpectedCSVBodyException extends InvalidArgumentException {
+class InvalidCSVLineException extends InvalidArgumentException {
+    private $lineNum;
     public function __construct ( string $message = "" , 
+            int $lineNum, 
             Throwable $previous = NULL ) {
+        $this->lineNum = $lineNum;
         $code = ExceptionCodes::getCode($this->class);
         parent::__construct($message, $code, $previous);
+    }
+    public function getLineNum() : int {
+        return $this->lineNum;
     }
 }
 

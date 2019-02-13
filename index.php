@@ -23,11 +23,12 @@ use \iirrc\middlewares\DateAdder;
 use \iirrc\handlers\AbstractRouteHandler;
 use Relay\Relay;
 use iirrc\errors\ExpectedCSVBodyException;
+use iirrc\db\DataLogger;
 
 require_once('vendor/autoload.php');
 require_once('conf/config.php');
 
-abstract class OpStatusCodes {
+abstract class RESTOpStatusCodes {
     const OK = 0;
 }
 
@@ -43,20 +44,31 @@ $queue[] = new Middlewares\RequestHandler();
 
 $relay = new Relay($queue);
 
-$app = new \Slim\App;
+$app = new \Slim\App(['settings' => $config]);
+$container = $app->getContainer();
+$container['db'] = function ($c) {
+    $db = $c['settings']['db'];
+    $pdo = new PDO('mysql:host=' . $db['host'] . ';dbname=' . $db['dbname'],
+        $db['user'], $db['pass']);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    return $pdo;
+};
+
 $app->get('/hello/{name}', function (Request $request, Response $response, array $args) {
     global $relay;
 
     $myHandler = new class($args, $response) extends AbstractRouteHandler {
 
         public function handle(Request $request): Response {
+            global $container;
             $name = $this->args['name'];
             $this->response->getBody()->write("Hello, $name from " 
                 . $request->getAttribute('client-ip') 
                 . " at " 
                 . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T')
                 . " and username "
-                . $request->getAttribute(USERNAME_ATTR)
+                . $request->getAttribute(USERNAME_ATTR) . "\n" . var_dump($container->db)
             );
             return $this->response;    
         }
@@ -70,48 +82,90 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
 
     $myHandler = new class($args, $response) extends AbstractRouteHandler {
 
+        private function isInTheFuture(DateTime $dt) : boolean {
+            $nowMinusDt = $dt->diff(new DateTime('now'));
+            if ($nowMinusDt->s < -300) return true;
+            return false;
+        }
+
         public function handle(Request $request): Response {
+            global $container;
             try {
+                $deviceMac = $request->getAttribute(USERNAME_ATTR);
+                if(!isset($deviceMac)) {
+                    throw new LogicException("Request does not have device's macaddr");
+                }
                 if (!AbstractRouteHandler::isCSVMedia($request)) {
                     throw new ExpectedCSVBodyException();
                 }
                 $stream = $request->getBody();
                 $dataToProcess = "";
+                $lineNum = 0;
+                $dataLogger = new DataLogger($container->db);
+                $deviceId = $dataLogger->getDeviceId($deviceMac);
+                if($deviceId === -1) {
+                    throw new LogicException("Could not find device id for macaddr");
+                }
+                $checkLastReported = true;
                 while(!$stream->eof()) {
                     $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
                     $dataChunk = strtr($dataChunk, array('\r' => ''));
                     $dataToProcess .= $dataChunk;
                     unset($dataChunk);
                     while (($nlPos = strpos($dataToProcess, '\n')) >= 0) {
+                        $lineNum++;
                         $dataLine = substr($dataToProcess, 0, $nlPos);
+                        $parsedData = $dataLogger->parseMoistureLine($dataLine, $lineNum);
+                        if (isInTheFuture($parsedData['reported_ts'])) {
+                            throw new InvalidCSVLineException("Reported date in the future", $lineNum);
+                        }
+                        if(isset($lastOk)) {
+                            $currentMinusLast = $lastOk['reported_ts']->diff($parsedData['reported_ts']);
+                            if ($currentMinusLast->s < 0) {
+                                throw new InvalidCSVLineException("Unordered data", $lineNum);
+                            }
+                        }
+                        if($checkLastReported) {
+                            $lastInsertedDB = $dataLogger->getLastReportedTS($deviceId);
+                            if(!is_null($lastInsertedDB)) {
+                                $currentMinusLast = $lastInsertedDB->diff($parsedData['reported_ts']);
+                                if ($currentMinusLast->s < 0) {
+                                    throw new InvalidCSVLineException("Line ts is before last inserted data", $lineNum);
+                                }
+                            }
+                            $checkLastReported = false;
+                        }
+                        //$parsedData passed all tests, now insert it to db
+                        
                         //checar se dataLine é valida se nao for, dar erro, retornar
                         //lembrar que para ser valido tem que estar ordenado e não estar no futuro
                         //tem que ser maior que ultima recebida também
                         //quantos registros foram adicionados bem como ts do último
                         //valido -> insere no bd 
                         //se ultrapassar numero de registros maximo por request, também reclamar
+
+                        $lastOk = $parsedData;
                         $dataToProcess = substr($dataToProcess, $nlPos + 1);
                         if ($dataToProcess === false) {
                             $dataToProcess = "";
                         }
                     } 
                     if(strlen($dataToProcess) >= BUFSIZE) {
-                            //FIXME retorna erro de linha muito longa
+                            throw new InvalidCSVLineException("Line too long", $lineNum);
                     }
                 }
                 if(strlen($dataToProcess) > 0) {
-                    //se for valida processa, ultima linha sem \n
+                    //warning, last line without \n, will be ignored
+                } else {
+                    //all ok
                 }
             } catch(ExpectedCSVBodyException $ex) {
 
+            } catch(InvalidCSVLineException $ex) {
+
+            } catch(LogicException $ex) {
+
             }
-            /*$this->response->getBody()->write("Hello, $name from " 
-                . $request->getAttribute('client-ip') 
-                . " at " 
-                . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T')
-                . " and username "
-                . $request->getAttribute(USERNAME_ATTR)
-            );*/
             return $this->response;    
         }
     };

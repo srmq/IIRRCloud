@@ -23,7 +23,11 @@ declare(strict_types = 1);
 namespace iirrc\errors;
 
 abstract class ExceptionCodes {
-    private static $code = array(ExpectedCSVBodyException::class => 1);
+    private static $code = array(
+        ExpectedCSVBodyException::class => 1,
+        InvalidCSVLineException::class => 2,
+        IOException::class => 3
+    );
 
     public static function getCode(string $className) : int {
         return ExceptionCodes::code[$className];

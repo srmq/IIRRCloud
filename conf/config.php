@@ -12,4 +12,13 @@ spl_autoload_register(function($nameClass) {
 
 define('USERNAME_ATTR', 'username');
 
+$config['displayErrorDetails'] = true;
+$config['addContentLengthHeader'] = false;
+
+$config['db']['host']   = 'localhost';
+$config['db']['user']   = 'srmq';
+$config['db']['pass']   = 'LulaLivr3';
+$config['db']['dbname'] = 'iirrclouddb';
+
+
 ?>
