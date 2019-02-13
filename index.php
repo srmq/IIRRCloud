@@ -22,7 +22,6 @@ use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use \iirrc\middlewares\DateAdder;
 use \iirrc\handlers\AbstractRouteHandler;
 use Relay\Relay;
-use Zikarsky\DataStructure\Buffer;
 
 require_once('vendor/autoload.php');
 require_once('conf/config.php');
@@ -65,22 +64,43 @@ $app->get('/hello/{name}', function (Request $request, Response $response, array
     return $relay->handle($request->withAttribute('request-handler', $myHandler));
 });
 
-$app->post('/v100/datalog', function (Request $request, Response $response, array $args) {
+$app->post('/v100/datalog/send', function (Request $request, Response $response, array $args) {
     global $relay;
 
     $myHandler = new class($args, $response) extends AbstractRouteHandler {
 
         public function handle(Request $request): Response {
+            if (!AbstractRouteHandler::isCSVMedia($request)) {
+                //FIXME retorna erro de tipo de dados invalido
+            }
             $stream = $request->getBody();
-            $dataBuf = new Buffer(BUFSIZE);
+            $dataToProcess = "";
             while(!$stream->eof()) {
-                if ($dataBuf->isFull()) {
-                    //FIXME retorna erro do buffer cheio 
-                } else {
-                    $dataChunk = $stream->read(BUFSIZE - $dataBuf->count());
-                    //XXX continuar copiar datachunk para buffer e consumir buffer
+                $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
+                $dataChunk = strtr($dataChunk, array('\r' => ''));
+                $dataToProcess .= $dataChunk;
+                unset($dataChunk);
+                while (($nlPos = strpos($dataToProcess, '\n')) >= 0) {
+                    $dataLine = substr($dataToProcess, 0, $nlPos);
+                    //checar se dataLine é valida se nao for, dar erro, retornar
+                    //lembrar que para ser valido tem que estar ordenado e não estar no futuro
+                    //tem que ser maior que ultima recebida também
+                    //quantos registros foram adicionados bem como ts do último
+                    //valido -> insere no bd 
+                    //se ultrapassar numero de registros maximo por request, também reclamar
+                    $dataToProcess = substr($dataToProcess, $nlPos + 1);
+                    if ($dataToProcess === false) {
+                        $dataToProcess = "";
+                    }
+                } 
+                if(strlen($dataToProcess) >= BUFSIZE) {
+                        //FIXME retorna erro de linha muito longa
                 }
             }
+            if(strlen($dataToProcess) > 0) {
+                //se for valida processa, ultima linha sem \n
+            }
+
             /*$this->response->getBody()->write("Hello, $name from " 
                 . $request->getAttribute('client-ip') 
                 . " at " 
