@@ -10,4 +10,6 @@ spl_autoload_register(function($nameClass) {
     }
 });
 
+define('USERNAME_ATTR', 'username');
+
 ?>

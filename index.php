@@ -20,15 +20,23 @@ use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use \iirrc\middlewares\DateAdder;
+use \iirrc\handlers\AbstractRouteHandler;
 use Relay\Relay;
+use Zikarsky\DataStructure\Buffer;
 
 require_once('vendor/autoload.php');
 require_once('conf/config.php');
 
-$queue[] = new Middlewares\DigestAuthentication([
+abstract class OpStatusCodes {
+    const OK = 0;
+}
+
+define('BUFSIZE', 1024);
+
+$queue[] = (new Middlewares\DigestAuthentication([
     'username1' => 'password1',
     'username2' => 'password2'
-]);
+]))->attribute(USERNAME_ATTR);
 $queue[] = new Middlewares\ClientIp();
 $queue[] = new DateAdder();
 $queue[] = new Middlewares\RequestHandler();
@@ -39,24 +47,54 @@ $app = new \Slim\App;
 $app->get('/hello/{name}', function (Request $request, Response $response, array $args) {
     global $relay;
 
-    $myHandler = new class($args, $response) implements RequestHandler {
-        private $args;
-        private $response;
-
-        public function __construct($args, $response) {
-            $this->args = $args;
-            $this->response = $response;
-        }
+    $myHandler = new class($args, $response) extends AbstractRouteHandler {
 
         public function handle(Request $request): Response {
             $name = $this->args['name'];
-            $this->response->getBody()->write("Hello, $name from " . $request->getAttribute('client-ip') . " at " . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T'));
+            $this->response->getBody()->write("Hello, $name from " 
+                . $request->getAttribute('client-ip') 
+                . " at " 
+                . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T')
+                . " and username "
+                . $request->getAttribute(USERNAME_ATTR)
+            );
             return $this->response;    
         }
     };
 
     return $relay->handle($request->withAttribute('request-handler', $myHandler));
 });
+
+$app->post('/v100/datalog', function (Request $request, Response $response, array $args) {
+    global $relay;
+
+    $myHandler = new class($args, $response) extends AbstractRouteHandler {
+
+        public function handle(Request $request): Response {
+            $stream = $request->getBody();
+            $dataBuf = new Buffer(BUFSIZE);
+            while(!$stream->eof()) {
+                if ($dataBuf->isFull()) {
+                    //FIXME retorna erro do buffer cheio 
+                } else {
+                    $dataChunk = $stream->read(BUFSIZE - $dataBuf->count());
+                    //XXX continuar copiar datachunk para buffer e consumir buffer
+                }
+            }
+            /*$this->response->getBody()->write("Hello, $name from " 
+                . $request->getAttribute('client-ip') 
+                . " at " 
+                . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T')
+                . " and username "
+                . $request->getAttribute(USERNAME_ATTR)
+            );*/
+            return $this->response;    
+        }
+    };
+
+    return $relay->handle($request->withAttribute('request-handler', $myHandler));
+});
+
 $app->run();
 
 ?>
