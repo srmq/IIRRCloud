@@ -23,6 +23,8 @@ use \iirrc\middlewares\DateAdder;
 use \iirrc\handlers\AbstractRouteHandler;
 use Relay\Relay;
 use iirrc\errors\ExpectedCSVBodyException;
+use iirrc\errors\IOException;
+use iirrc\errors\InvalidCSVLineException;
 use iirrc\db\DataLogger;
 
 require_once('vendor/autoload.php');
@@ -83,7 +85,7 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
     $myHandler = new class($args, $response) extends AbstractRouteHandler {
 
         private function isInTheFuture(DateTime $dt) : boolean {
-            $nowMinusDt = $dt->diff(new DateTime('now'));
+            $nowMinusDt = $dt->diff(new DateTime('now', new DateTimeZone('UTC')));
             if ($nowMinusDt->s < -300) return true;
             return false;
         }
@@ -94,6 +96,10 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                 $deviceMac = $request->getAttribute(USERNAME_ATTR);
                 if(!isset($deviceMac)) {
                     throw new LogicException("Request does not have device's macaddr");
+                }
+                $originIP = $request->getAttribute('client-ip');
+                if(!isset($originIP)) {
+                    throw new LogicException("Request does not have origin IP");
                 }
                 if (!AbstractRouteHandler::isCSVMedia($request)) {
                     throw new ExpectedCSVBodyException();
@@ -107,6 +113,7 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                     throw new LogicException("Could not find device id for macaddr");
                 }
                 $checkLastReported = true;
+                $receivedAt = new DateTime('now', new DateTimeZone('UTC'));
                 while(!$stream->eof()) {
                     $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
                     $dataChunk = strtr($dataChunk, array('\r' => ''));
@@ -136,6 +143,7 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                             $checkLastReported = false;
                         }
                         //$parsedData passed all tests, now insert it to db
+                        $dataLogger->insertLine($parsedData, $deviceId, $receivedAt, $originIP);
                         
                         //checar se dataLine é valida se nao for, dar erro, retornar
                         //lembrar que para ser valido tem que estar ordenado e não estar no futuro
@@ -165,6 +173,10 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
 
             } catch(LogicException $ex) {
 
+            } catch(IOException $ex) {
+
+            } catch(Exception $ex) {
+                
             }
             return $this->response;    
         }

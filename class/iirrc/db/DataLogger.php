@@ -81,7 +81,20 @@ class DataLogger  {
     }
 
     public function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP) {
-        //FIXME continue
+        $parsedData['tbDevice_id'] = $deviceId;
+        $parsedData['received_at'] = $rcvAt;
+        $parsedData['origin_ip'] = $originIP;
+
+        $sql = 'INSERT INTO tbIrrigLog(tbDevice_id, reported_ts, received_at, origin_ip, moist_surface, moist_middle, moist_deep, isIrrigating) '
+                . 'VALUES (:tbDevice_id, :reported_ts, :received_at, :origin_ip, :moist_surface, :moist_middle, :moist_deep, :isIrrigating)';
+        $stmt = $this->pdo->prepare($sql);
+
+        foreach ($parsedData as $key => &$val) {
+            $stmt->bindParam(':' . $key, $val);
+        }
+        if(!$stmt->execute()) {
+            throw new IOException("input/output error when trying to insert line");
+        }
     }
 
     //
