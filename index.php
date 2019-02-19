@@ -26,12 +26,16 @@ use iirrc\errors\ExpectedCSVBodyException;
 use iirrc\errors\IOException;
 use iirrc\errors\InvalidCSVLineException;
 use iirrc\db\DataLogger;
+use iirrc\db\MessageLogger;
+use iirrc\db\DeviceManager;
 
 require_once('vendor/autoload.php');
 require_once('conf/config.php');
 
 abstract class RESTOpStatusCodes {
     const OK = 0;
+    const WARN = 1;
+    const ERR = 2;
 }
 
 define('BUFSIZE', 1024);
@@ -102,13 +106,15 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                     throw new LogicException("Request does not have origin IP");
                 }
                 if (!AbstractRouteHandler::isCSVMedia($request)) {
-                    throw new ExpectedCSVBodyException();
+                    throw new ExpectedCSVBodyException("Content-type is not CSV");
                 }
                 $stream = $request->getBody();
                 $dataToProcess = "";
                 $lineNum = 0;
                 $dataLogger = new DataLogger($container->db);
-                $deviceId = $dataLogger->getDeviceId($deviceMac);
+                $deviceManager = new DeviceManager($container->db);
+                $deviceId = $deviceManager->getDeviceId($deviceMac);
+                unset($deviceManager);
                 if($deviceId === -1) {
                     throw new LogicException("Could not find device id for macaddr");
                 }
@@ -121,6 +127,9 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                     unset($dataChunk);
                     while (($nlPos = strpos($dataToProcess, '\n')) >= 0) {
                         $lineNum++;
+                        if ($lineNum > MAXLINES) {
+                            throw new InvalidCSVLineException("More than " . MAXLINES . " in request", lineNum);
+                        }
                         $dataLine = substr($dataToProcess, 0, $nlPos);
                         $parsedData = $dataLogger->parseMoistureLine($dataLine, $lineNum);
                         if (isInTheFuture($parsedData['reported_ts'])) {
@@ -145,13 +154,6 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                         //$parsedData passed all tests, now insert it to db
                         $dataLogger->insertLine($parsedData, $deviceId, $receivedAt, $originIP);
                         
-                        //checar se dataLine é valida se nao for, dar erro, retornar
-                        //lembrar que para ser valido tem que estar ordenado e não estar no futuro
-                        //tem que ser maior que ultima recebida também
-                        //quantos registros foram adicionados bem como ts do último
-                        //valido -> insere no bd 
-                        //se ultrapassar numero de registros maximo por request, também reclamar
-
                         $lastOk = $parsedData;
                         $dataToProcess = substr($dataToProcess, $nlPos + 1);
                         if ($dataToProcess === false) {
@@ -162,23 +164,28 @@ $app->post('/v100/datalog/send', function (Request $request, Response $response,
                             throw new InvalidCSVLineException("Line too long", $lineNum);
                     }
                 }
+                $result = array();
                 if(strlen($dataToProcess) > 0) {
-                    //warning, last line without \n, will be ignored
+                    $result['status'] = RESTOpStatusCodes::WARN;
                 } else {
-                    //all ok
+                    $result['status'] = RESTOpStatusCodes::OK;
                 }
-            } catch(ExpectedCSVBodyException $ex) {
-
+                $result['numprocess'] = $lineNum;
+                $this->response->getBody()->write(json_encode($result));
             } catch(InvalidCSVLineException $ex) {
-
-            } catch(LogicException $ex) {
-
-            } catch(IOException $ex) {
-
+                $result = array();
+                $result['status'] = RESTOpStatusCodes::ERR;
+                $result['errno'] = $ex->getCode();
+                $result['errline'] = $ex->getLineNum();
+                $this->response->getBody()->write(json_encode($result));
             } catch(Exception $ex) {
-                
+                $result = array();
+                $result['status'] = RESTOpStatusCodes::ERR;
+                $result['errno'] = $ex->getCode();
+                $this->response->getBody()->write(json_encode($result));                
             }
-            return $this->response;    
+
+            return $this->response->withHeader('Content-Type', 'application/json');   
         }
     };
 

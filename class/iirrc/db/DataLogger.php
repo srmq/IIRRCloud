@@ -24,6 +24,7 @@ namespace iirrc\db;
 
 use \PDO;
 use \iirrc\errors\InvalidCSVLineException;
+use \iirrc\errors\IOException;
 use \DateTimeZone;
 use \DateTime;
 
@@ -35,7 +36,7 @@ class DataLogger  {
         $this->pdo = $pdo;
     }
 
-    public function parseMoistureLine(string $datalogLine, int $lineNum) : array {
+    public function parseLine(string $datalogLine, int $lineNum) : array {
         $result = array();
         $n = sscanf($datalogLine, '%15s,%F,%F,%F,%d', $tsString, 
                 $result['moist_surface'], $result['moist_middle'], $result['moist_deep'],
@@ -48,21 +49,6 @@ class DataLogger  {
             throw new InvalidCSVLineException("Date is invalid", $lineNum);
         }
         $result['reported_ts'] = $rcvDate;
-        return $result;
-    }
-
-    public function getDeviceId(string $macAddr) : int {
-        
-        $sql = 'SELECT id FROM tbDevice WHERE mac_id = ? LIMIT 1';
-        $stmt = $this->pdo->prepare($sql);
-        if (!$stmt->execute(array($macAddr))) {
-            throw new IOException("input/output error when trying to get device id");
-        }
-        $deviceId = $stmt->fetch(PDO::FETCH_NUM);
-        $result = -1;
-        if(!empty($deviceId)) {
-            $result = $deviceId[0];
-        }
         return $result;
     }
 

@@ -11,6 +11,7 @@ spl_autoload_register(function($nameClass) {
 });
 
 define('USERNAME_ATTR', 'username');
+define('MAXLINES', 50);
 
 $config['displayErrorDetails'] = true;
 $config['addContentLengthHeader'] = false;
