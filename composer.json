@@ -10,6 +10,13 @@
         "middlewares/request-handler": "^1.4",
         "middlewares/client-ip": "^1.1"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^7.5",
+        "guzzlehttp/guzzle": "~6.0"
+    },
+    "autoload": {
+        "psr-4": {"iirrc\\": "class/iirrc"}
+    },
     "license": "GNU Affero General Public Licence, as published by the Free Software Foundation (FSF), either version 3 of the License, or (at your option) any later version published by the FSF.",
     "authors": [
         {
