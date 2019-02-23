@@ -1,4 +1,5 @@
 <?php
+
 /*
    This file is part of IIRRCloud.
 
@@ -16,12 +17,17 @@
     along with IIRRCloud.  If not, see <https://www.gnu.org/licenses/>
  */
 
-use iirrc\main\App;
 
-require_once('vendor/autoload.php');
-require_once('conf/config.php');
+declare(strict_types = 1);
 
-$app = new App();
-$app->get()->run();
+namespace iirrc\util;
+
+abstract class RESTOpStatusCodes {
+    const OK = 0;
+    const WARN = 1;
+    const ERR = 2;
+}
+
+
 
 ?>

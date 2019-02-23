@@ -28,13 +28,7 @@ use \iirrc\errors\IOException;
 use \DateTimeZone;
 use \DateTime;
 
-class DataLogger  {
-
-    private $pdo;
-
-    public function __construct(PDO $pdo) {
-        $this->pdo = $pdo;
-    }
+class DataLogger extends CSVLogger {
 
     public function parseLine(string $datalogLine, int $lineNum) : array {
         $result = array();
@@ -82,8 +76,6 @@ class DataLogger  {
             throw new IOException("input/output error when trying to insert line");
         }
     }
-
-    //
 
 }
 

@@ -25,19 +25,31 @@ namespace iirrc\handlers;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use \Slim\Container;
+use \DateTime;
+use \DateTimeZone;
 
 abstract class AbstractRouteHandler implements RequestHandler {
     protected $args;
     protected $response;
+    protected $container;
 
-    public function __construct(array $args, Response $response) {
+    public function __construct(array $args, Response $response, Container $container) {
         $this->args = $args;
         $this->response = $response;
+        $this->container = $container;
     }
 
     public static function isCSVMedia(Request $request) : boolean {
         return $request->getMediaType() === "text/csv";
     }
+
+    public static function isInTheFuture(DateTime $dt) : boolean {
+        $nowMinusDt = $dt->diff(new DateTime('now', new DateTimeZone('UTC')));
+        if ($nowMinusDt->s < -300) return true;
+        return false;
+    }
+
 
     public abstract function handle(Request $request): Response;
 

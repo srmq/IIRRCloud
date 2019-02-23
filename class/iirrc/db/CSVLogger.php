@@ -20,20 +20,27 @@
 
 declare(strict_types = 1);
 
-namespace iirrc\handlers;
+namespace iirrc\db;
 
-use \Psr\Http\Message\ServerRequestInterface as Request;
-use \Psr\Http\Message\ResponseInterface as Response;
-use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
-use \Relay\Relay;
-use \Slim\Container;
+use \PDO;
+use \iirrc\errors\InvalidCSVLineException;
+use \iirrc\errors\IOException;
+use \DateTimeZone;
+use \DateTime;
 
-abstract class AbstractCSVRouteHandler extends AbstractRouteHandler {
-    protected $args;
-    protected $response;
+abstract class CSVLogger  {
 
+    protected $pdo;
 
-    public abstract function handle(Request $request): Response;
+    public function __construct(PDO $pdo) {
+        $this->pdo = $pdo;
+    }
+
+    public abstract function parseLine(string $datalogLine, int $lineNum) : array;
+
+    public abstract function getLastReportedTS(int $deviceId) : DateTime;
+
+    public abstract function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP);
 
 }
 

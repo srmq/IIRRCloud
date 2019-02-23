@@ -28,9 +28,8 @@ use \iirrc\errors\IOException;
 use \DateTimeZone;
 use \DateTime;
 
-class MessageLogger  {
+class MessageLogger extends CSVLogger  {
 
-    private $pdo;
     private $messageTypes;
     private $messageCodes;
     private $stopIrrigReasons;
@@ -38,7 +37,7 @@ class MessageLogger  {
     private $waterStartStatus;
 
     public function __construct(PDO $pdo) {
-        $this->pdo = $pdo;
+        parent::__construct($pdo);
         $this->messageTypes = array(
             0 => 'MSG_DEBUG',
             1 => 'MSG_INFO',
