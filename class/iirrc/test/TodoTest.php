@@ -40,11 +40,12 @@ class TodoTest extends \PHPUnit\Framework\TestCase
 
     public function testLocalhost() {
         // Create a client with a base URI
-        $client = new GuzzleHttp\Client(['base_uri' => 'http://localhost:8080/']);
+        $client = new Client(['base_uri' => 'http://localhost:8080/']);
         // Send a request to https://foo.com/api/test
-        $response = $client->request('GET', '/hello/srmqthegreat');      
-        $parsedAuthInfo = HTTPUtil::parseAuthHeader($response);
-        echo ">>>>GUZZLE: " . var_dump($parsedAuthInfo) . "\n";
+        $response = $client->request('GET', '/hello/srmqthegreat', [
+            'auth' => ['username1', 'password1', 'digest']]);      
+        //$parsedAuthInfo = HTTPUtil::parseAuthHeader($response);
+        echo ">>>>GUZZLE: \n";
         echo ((string)$response->getBody()) . "\n";
         echo $response->getStatusCode() . "\n";
         $this->assertTrue(true);
@@ -63,6 +64,7 @@ class TodoTest extends \PHPUnit\Framework\TestCase
         echo ((string)$response->getBody()) . "\n";
         echo $response->getStatusCode() . "\n";
 
+        /*
         $userName = 'username1';
         $pass='password1';
         $uri = '/hello/srmqthegreat';
@@ -86,7 +88,7 @@ class TodoTest extends \PHPUnit\Framework\TestCase
         echo $response->getStatusCode() . "\n";
 
         
-
+*/
         $this->assertTrue(true);
     } 
 }

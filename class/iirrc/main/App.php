@@ -33,6 +33,8 @@ use \iirrc\db\MessageLogger;
 use \iirrc\handlers\AbstractRouteHandler;
 use \iirrc\handlers\CSVRouteHandler;
 use \PDO;
+use \DateTime;
+use \DateTimeZone;
 
 
 
@@ -104,6 +106,38 @@ class App {
             $myHandler = new CSVRouteHandler($msgLogger, $args, $response, App::$container); 
         
             return App::$relay->handle($request->withAttribute('request-handler', $myHandler));
+        });
+
+        $this->app->get('/v100/{type}/send-params', function(Request $request, Response $response, array $args) {
+            $msgOrLogData = $this->args['type'];
+
+            $deviceMac = $request->getAttribute(USERNAME_ATTR);
+            if(!isset($deviceMac)) {
+                throw new LogicException("Request does not have device's macaddr");
+            }
+
+            if ($msgOrLogData == 'msglog') {
+                $csvLogger = new MessageLogger(App::$container->db);
+            } else if ($msgOrLogData == 'datalog') {
+                $csvLogger = new DataLogger(App::$container->db);
+            } else {
+                return $response->withStatus(404);
+            }
+
+            $deviceManager = new DeviceManager($container->db);
+            $deviceId = $deviceManager->getDeviceId($deviceMac);
+            unset($deviceManager);
+            if($deviceId === -1) {
+                throw new LogicException("Could not find device id for macaddr");
+            }
+             
+            $params = array();
+
+            $lastTS = $csvLogger->getLastReportedTS($deviceId);
+            $params['last-ts'] = is_null($lastTS) ? null : $lastTS->format('D, d M Y H:i:s \G\M\T');
+            $params['maxlines'] = $csvLogger->getMaxAllowedLines();
+            $params['now'] = (new DateTime('now', new DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
+            return $response->withJson($params);
         });
     }
 

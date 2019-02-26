@@ -42,6 +42,7 @@ abstract class CSVLogger  {
 
     public abstract function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP);
 
+    public abstract function getMaxAllowedLines() : int;
 }
 
 ?>

@@ -22,6 +22,8 @@ declare(strict_types = 1);
 
 namespace iirrc\db;
 
+require_once('conf/config.php');
+
 use \PDO;
 use \iirrc\errors\InvalidCSVLineException;
 use \iirrc\errors\IOException;
@@ -172,6 +174,11 @@ class MessageLogger extends CSVLogger  {
             throw new IOException("input/output error when trying to insert line");
         }
     }
+
+    public function getMaxAllowedLines() : int {
+        return MAX_MSG_LINES;
+    }
+
 
 }
 
