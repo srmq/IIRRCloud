@@ -21,23 +21,56 @@
 
 declare(strict_types = 1);
 
-namespace iirrc\test;
+namespace iirrc\test\main;
 
 use \Slim\Http\Environment;
 use \Slim\Http\Request;
 use \iirrc\main\App;
 use \iirrc\util\HTTPUtil;
 use \GuzzleHttp\Client;
+use \GuzzleHttp\Exception\ClientException;
 
-class TodoTest extends \PHPUnit\Framework\TestCase
+class AppTest extends \PHPUnit\Framework\TestCase
 {
     protected $app;
+
+    public $testBaseUrl = 'http://localhost:8080/';
 
     public function setUp()
     {
         $this->app = (new App())->get();
     }
 
+    public function testSendParams() {
+        $datalogURL = '/v100/datalog/send-params';
+        $msglogURL = '/v100/msglog/send-params';
+        $invalidlogURL = '/v100/invalid/send-params';
+        $client = new Client(['base_uri' => $this->testBaseUrl]);
+        $testNoAuth = function(string $url, array $options = []) use ($client) {
+            try {
+                $responseNoAuth = $client->request('GET', $url, $options);
+                $this->assertTrue(false, 'Should generate ClientException due to 401 Unauthorized error with url ' . $url);
+            } catch(ClientException $e) {
+                $this->assertTrue(true);
+            }
+        };
+        $testNoAuth($datalogURL);
+        $testNoAuth($msglogURL);
+        $testNoAuth($invalidlogURL);
+        $testNoAuth($datalogURL, [
+            'auth' => ['invalidUser', 'password', 'digest']]);
+        $testNoAuth($msglogURL, [
+            'auth' => ['invalidUser', 'password', 'digest']]);
+        $testNoAuth($invalidlogURL, [
+            'auth' => ['invalidUser', 'password', 'digest']]);
+        
+        $response = $client->request('GET', $datalogURL, [
+            'auth' => ['username1', 'password1', 'digest']]);      
+        echo $response->getBody();
+    
+    }
+
+    /*
     public function testLocalhost() {
         // Create a client with a base URI
         $client = new Client(['base_uri' => 'http://localhost:8080/']);
@@ -63,7 +96,7 @@ class TodoTest extends \PHPUnit\Framework\TestCase
         echo var_dump($parsedAuthInfo) . '\n';
         echo ((string)$response->getBody()) . "\n";
         echo $response->getStatusCode() . "\n";
-
+*/
         /*
         $userName = 'username1';
         $pass='password1';
@@ -89,6 +122,6 @@ class TodoTest extends \PHPUnit\Framework\TestCase
 
         
 */
-        $this->assertTrue(true);
-    } 
+/*        $this->assertTrue(true);
+    } */ 
 }

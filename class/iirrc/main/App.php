@@ -30,12 +30,15 @@ use \iirrc\middlewares\DateAdder;
 use \Relay\Relay;
 use \iirrc\db\DataLogger;
 use \iirrc\db\MessageLogger;
+use \iirrc\db\DeviceManager;
 use \iirrc\handlers\AbstractRouteHandler;
 use \iirrc\handlers\CSVRouteHandler;
+use \iirrc\util\RESTOpStatusCodes;
 use \PDO;
 use \DateTime;
 use \DateTimeZone;
-
+use \LogicException;
+use \Exception;
 
 
 class App {
@@ -45,8 +48,16 @@ class App {
      * @var \Slim\App
      */
     private $app;
-    protected static $container;
-    protected static $relay;
+    private static $container;
+    private static $relay;
+
+    public static function getContainer() {
+        return App::$container;
+    }
+
+    public static function getRelay() {
+        return App::$relay;
+    }
 
     public function __construct() {
         global $config;
@@ -70,9 +81,17 @@ class App {
             $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             return $pdo;
         };
+
+        App::$container['logger'] = function($c) {
+            $logger = new \Monolog\Logger('iirrc_logger');
+            $file_handler = new \Monolog\Handler\StreamHandler('./logs/app.log');
+            $logger->pushHandler($file_handler);
+            return $logger;
+        };
+        
         
         $this->app->get('/hello/{name}', function (Request $request, Response $response, array $args) {    
-            $myHandler = new class($args, $response, App::$container) extends AbstractRouteHandler {
+            $myHandler = new class($args, $response, App::getContainer()) extends AbstractRouteHandler {
         
                 public function handle(Request $request): Response {
                     $name = $this->args['name'];
@@ -81,63 +100,79 @@ class App {
                         . " at " 
                         . $request->getAttribute('request-date')->format('D, d M Y H:i:s \G\M\T')
                         . " and username "
-                        . $request->getAttribute(USERNAME_ATTR) . "\n" . var_dump($this->container->db)
+                        . $request->getAttribute(USERNAME_ATTR) . "\n" . var_dump(App::getContainer()->db)
                     );
                     return $this->response;    
                 }
             };
         
-            return App::$relay->handle($request->withAttribute('request-handler', $myHandler));
+            return App::getRelay()->handle($request->withAttribute('request-handler', $myHandler));
         });
         
         $this->app->post('/v100/datalog/send', function (Request $request, Response $response, array $args) {
         
-            $dataLogger = new DataLogger(App::$container->db);
+            $dataLogger = new DataLogger(App::getContainer()->db);
         
-            $myHandler = new CSVRouteHandler($dataLogger, $args, $response, $App::container); 
+            $myHandler = new CSVRouteHandler($dataLogger, $args, $response, App::getContainer()); 
         
-            return App::$relay->handle($request->withAttribute('request-handler', $myHandler));
+            return App::getRelay()->handle($request->withAttribute('request-handler', $myHandler));
         });
         
         $this->app->post('/v100/msglog/send', function (Request $request, Response $response, array $args) {
         
-            $msgLogger = new MessageLogger(App::$container->db);
+            $msgLogger = new MessageLogger(App::getContainer()->db);
         
-            $myHandler = new CSVRouteHandler($msgLogger, $args, $response, App::$container); 
+            $myHandler = new CSVRouteHandler($msgLogger, $args, $response, App::getContainer()); 
         
-            return App::$relay->handle($request->withAttribute('request-handler', $myHandler));
+            return App::getRelay()->handle($request->withAttribute('request-handler', $myHandler));
         });
 
         $this->app->get('/v100/{type}/send-params', function(Request $request, Response $response, array $args) {
-            $msgOrLogData = $this->args['type'];
-
-            $deviceMac = $request->getAttribute(USERNAME_ATTR);
-            if(!isset($deviceMac)) {
-                throw new LogicException("Request does not have device's macaddr");
-            }
-
-            if ($msgOrLogData == 'msglog') {
-                $csvLogger = new MessageLogger(App::$container->db);
-            } else if ($msgOrLogData == 'datalog') {
-                $csvLogger = new DataLogger(App::$container->db);
-            } else {
-                return $response->withStatus(404);
-            }
-
-            $deviceManager = new DeviceManager($container->db);
-            $deviceId = $deviceManager->getDeviceId($deviceMac);
-            unset($deviceManager);
-            if($deviceId === -1) {
-                throw new LogicException("Could not find device id for macaddr");
-            }
-             
-            $params = array();
-
-            $lastTS = $csvLogger->getLastReportedTS($deviceId);
-            $params['last-ts'] = is_null($lastTS) ? null : $lastTS->format('D, d M Y H:i:s \G\M\T');
-            $params['maxlines'] = $csvLogger->getMaxAllowedLines();
-            $params['now'] = (new DateTime('now', new DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
-            return $response->withJson($params);
+            $myHandler = new class($args, $response, App::getContainer()) extends AbstractRouteHandler {
+                public function handle(Request $request): Response {
+                    try {
+                        $msgOrLogData = $this->args['type'];
+        
+                        $deviceMac = $request->getAttribute(USERNAME_ATTR);
+                        if(!isset($deviceMac)) {
+                            throw new LogicException("Request does not have device's macaddr");
+                        }
+        
+                        if ($msgOrLogData == 'msglog') {
+                            $csvLogger = new MessageLogger(App::getContainer()->db);
+                        } else if ($msgOrLogData == 'datalog') {
+                            $csvLogger = new DataLogger(App::getContainer()->db);
+                        } else {
+                            return $this->response->withStatus(404);
+                        }
+        
+                        $deviceManager = new DeviceManager(App::getContainer()->db);
+                        $deviceId = $deviceManager->getDeviceId($deviceMac);
+                        unset($deviceManager);
+                        if($deviceId === -1) {
+                            throw new LogicException("Could not find device id for macaddr");
+                        }
+                        
+                        $params = array();
+        
+                        $lastTS = $csvLogger->getLastReportedTS($deviceId);
+                        $params['status'] = RESTOpStatusCodes::OK;
+                        $params['last-ts'] = is_null($lastTS) ? null : $lastTS->format('D, d M Y H:i:s \G\M\T');
+                        $params['maxlines'] = $csvLogger->getMaxAllowedLines();
+                        $params['now'] = (new DateTime('now', new DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
+                    } catch(Exception $ex) {
+                        $classEx = get_class($ex);
+                        echo "SHOULD LOG\n";
+                        App::getContainer()->logger->addError("Got {$classEx} at {$ex->getFile()} line {$ex->getLine()}. Message: {$ex->getMessage()}. Code: {$ex->getCode()}.", $ex->getTrace());
+                        $params = array();
+                        $params['status'] = RESTOpStatusCodes::ERR;
+                        $params['errno'] = $ex->getCode();
+                    }
+                       
+                    return $this->response->withJson($params);
+                }
+            };
+            return App::getRelay()->handle($request->withAttribute('request-handler', $myHandler));
         });
     }
 
