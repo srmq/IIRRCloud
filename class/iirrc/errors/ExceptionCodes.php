@@ -26,7 +26,8 @@ abstract class ExceptionCodes {
     private static $code = array(
         ExpectedCSVBodyException::class => 1,
         InvalidCSVLineException::class => 2,
-        IOException::class => 3
+        IOException::class => 3,
+        UnsupportedOperationException::class => 4
     );
 
     public static function getCode(string $className) : int {

@@ -20,34 +20,18 @@
 
 declare(strict_types = 1);
 
-namespace iirrc\db;
+namespace iirrc\errors;
 
-use \iirrc\errors\IOException;
-use \PDO;
+use \Exception;
+use \Throwable;
 
-class DeviceManager  {
 
-    private $pdo;
-
-    public function __construct(PDO $pdo) {
-        $this->pdo = $pdo;
+class UnsupportedOperationException extends Exception {
+    public function __construct ( string $message = "" , 
+            Throwable $previous = NULL ) {
+        $code = ExceptionCodes::getCode($this->class);
+        parent::__construct($message, $code, $previous);
     }
-
-    public function getDeviceId(string $macAddr) : int {
-        
-        $sql = 'SELECT id FROM tbDevice WHERE mac_id = ? LIMIT 1';
-        $stmt = $this->pdo->prepare($sql);
-        if (!$stmt->execute(array($macAddr))) {
-            throw new IOException("input/output error when trying to get device id");
-        }
-        $deviceId = $stmt->fetch(PDO::FETCH_NUM);
-        $result = -1;
-        if(!empty($deviceId)) {
-            $result = (int)$deviceId[0];
-        }
-        return $result;
-    }
-
 }
 
 ?>

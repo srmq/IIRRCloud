@@ -38,7 +38,7 @@ abstract class CSVLogger  {
 
     public abstract function parseLine(string $datalogLine, int $lineNum) : array;
 
-    public abstract function getLastReportedTS(int $deviceId) : DateTime;
+    public abstract function getLastReportedTS(int $deviceId) : ?DateTime;
 
     public abstract function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP);
 

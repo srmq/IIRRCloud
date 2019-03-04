@@ -48,7 +48,7 @@ class DataLogger extends CSVLogger {
         return $result;
     }
 
-    public function getLastReportedTS(int $deviceId) : DateTime {
+    public function getLastReportedTS(int $deviceId) : ?DateTime {
         $sql = 'SELECT reported_ts FROM tbIrrigLog WHERE tbDevice_id = ? ORDER BY reported_ts DESC LIMIT 1';
         $stmt = $this->pdo->prepare($sql);
         if (!$stmt->execute(array($deviceId))) {

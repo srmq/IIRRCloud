@@ -31,6 +31,7 @@ use \Relay\Relay;
 use \iirrc\db\DataLogger;
 use \iirrc\db\MessageLogger;
 use \iirrc\db\DeviceManager;
+use \iirrc\db\UnmodifiableDeviceArray;
 use \iirrc\handlers\AbstractRouteHandler;
 use \iirrc\handlers\CSVRouteHandler;
 use \iirrc\util\RESTOpStatusCodes;
@@ -61,15 +62,6 @@ class App {
 
     public function __construct() {
         global $config;
-        $queue[] = (new \Middlewares\DigestAuthentication([
-            'username1' => 'password1',
-            'username2' => 'password2'
-        ]))->attribute(USERNAME_ATTR);
-        $queue[] = new \Middlewares\ClientIp();
-        $queue[] = new DateAdder();
-        $queue[] = new \Middlewares\RequestHandler();
-                
-        App::$relay = new Relay($queue);
 
         $this->app = new \Slim\App(['settings' => $config]);
         App::$container = $this->app->getContainer();
@@ -81,6 +73,14 @@ class App {
             $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             return $pdo;
         };
+
+        $queue[] = (new \Middlewares\DigestAuthentication(new UnmodifiableDeviceArray(App::getContainer()->db)))->attribute(USERNAME_ATTR);
+        $queue[] = new \Middlewares\ClientIp();
+        $queue[] = new DateAdder();
+        $queue[] = new \Middlewares\RequestHandler();
+                
+        App::$relay = new Relay($queue);
+
 
         App::$container['logger'] = function($c) {
             $logger = new \Monolog\Logger('iirrc_logger');
@@ -162,7 +162,6 @@ class App {
                         $params['now'] = (new DateTime('now', new DateTimeZone('UTC')))->format('D, d M Y H:i:s \G\M\T');
                     } catch(Exception $ex) {
                         $classEx = get_class($ex);
-                        echo "SHOULD LOG\n";
                         App::getContainer()->logger->addError("Got {$classEx} at {$ex->getFile()} line {$ex->getLine()}. Message: {$ex->getMessage()}. Code: {$ex->getCode()}.", $ex->getTrace());
                         $params = array();
                         $params['status'] = RESTOpStatusCodes::ERR;
