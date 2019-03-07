@@ -64,10 +64,10 @@ class DataLogger extends CSVLogger {
 
     public function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP) {
         $parsedData['tbDevice_id'] = $deviceId;
-        $parsedData['received_at'] = $rcvAt;
+        $parsedData['received_at'] = $rcvAt->format('Y-m-d H:i:s');
         $parsedData['origin_ip'] = $originIP;
 
-        $sql = 'INSERT INTO tbIrrigLog(tbDevice_id, reported_ts, received_at, origin_ip, moist_surface, moist_middle, moist_deep, isIrrigating) '
+        $sql = 'INSERT INTO tbIrrigLog (tbDevice_id, reported_ts, received_at, origin_ip, moist_surface, moist_middle, moist_deep, isIrrigating) '
                 . 'VALUES (:tbDevice_id, :reported_ts, :received_at, :origin_ip, :moist_surface, :moist_middle, :moist_deep, :isIrrigating)';
         $stmt = $this->pdo->prepare($sql);
 

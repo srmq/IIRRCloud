@@ -67,7 +67,8 @@ class App {
         App::$container = $this->app->getContainer();
         App::$container['db'] = function ($c) {
             $db = $c['settings']['db'];
-            $pdo = new PDO('mysql:host=' . $db['host'] . ';dbname=' . $db['dbname'],
+            $connString = 'mysql:host=' . $db['host'] . ';dbname=' . $db['dbname'];
+            $pdo = new PDO($connString,
                 $db['user'], $db['pass']);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);

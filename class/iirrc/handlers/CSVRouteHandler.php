@@ -30,7 +30,11 @@ use \DateTime;
 use iirrc\errors\ExpectedCSVBodyException;
 use iirrc\errors\IOException;
 use iirrc\errors\InvalidCSVLineException;
+use iirrc\errors\InvalidUserAccountException;
 use iirrc\db\CSVLogger;
+use iirrc\db\UserManager;
+use iirrc\db\AccountManager;
+use iirrc\db\DeviceManager;
 use \LogicException;
 
 require_once('conf/config.php');
@@ -61,14 +65,33 @@ class CSVRouteHandler extends AbstractRouteHandler {
             $stream = $request->getBody();
             $dataToProcess = "";
             $lineNum = 0;
-            $deviceManager = new DeviceManager($container->db);
-            $deviceId = $deviceManager->getDeviceId($deviceMac);
-            unset($deviceManager);
+            $deviceManager = new DeviceManager($this->container->db);
+            $device = $deviceManager->getDeviceByMac($deviceMac);
+            $deviceId = $device['id'];
             if($deviceId === -1) {
                 throw new LogicException("Could not find device id for macaddr");
             }
+            if(!empty($device['tbAccount_tbUser_uid'])) {
+                $accountManager = new AccountMager($this->container->db);
+                $userAccount = $accountManager->getAccountForUserId($device['tbAccount_tbUser_uid']);
+                if(empty($userAccount)) {
+                    throw new LogicException("Reference to user account that do not exist (id: {$device['tbAccount_tbUser_uid']})");
+                }
+                if($accountManager->isAccountExpired($userAccount)) {
+                    throw new InvalidUserAccountException("Account expired for device");
+                }
+            } else {
+                throw new InvalidUserAccountException("No user account for device");
+            }
+
             $checkLastReported = true;
             $receivedAt = new DateTime('now', new DateTimeZone('UTC'));
+            if(empty($device['fst_activation'])) {
+                $device['fst_activation'] = $receivedAt->format('Y-m-d H:i:s');
+                $deviceManager->updateDevice($device);
+            }
+            unset($device);
+            unset($deviceManager);
             while(!$stream->eof()) {
                 $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
                 $dataChunk = strtr($dataChunk, array('\r' => ''));

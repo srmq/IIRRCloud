@@ -34,7 +34,7 @@ class UserManager  {
         $this->pdo = $pdo;
     }
 
-    public function userExists(array $user) : boolean {
+    public function userExists(array $user) : bool {
         if(array_key_exists('uid', $user)) {
             $sql = 'SELECT uid FROM tbUser WHERE uid = ? LIMIT 1';
             $val = $user['uid'];            
@@ -61,9 +61,9 @@ class UserManager  {
                 }
             }
         };
-        $exIfNotExists($user, array('name', 'surname', 'email'));
+        $exIfNotExists($user, array_fill_keys(array('name', 'surname', 'email', 'password'), ''));
 
-        $sql = 'INSERT INTO tbUser(name, surname, email) VALUES (:name, :surname, :email)';
+        $sql = 'INSERT INTO tbUser (name, surname, email, password) VALUES (:name, :surname, :email, :password)';
         $stmt = $this->pdo->prepare($sql);
 
         foreach ($user as $key => &$val) {

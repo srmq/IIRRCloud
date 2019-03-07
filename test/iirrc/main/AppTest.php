@@ -29,19 +29,66 @@ use \iirrc\main\App;
 use \iirrc\util\HTTPUtil;
 use \GuzzleHttp\Client;
 use \GuzzleHttp\Exception\ClientException;
+use \iirrc\db\UserManager;
+use \iirrc\db\AccountManager;
+use \iirrc\db\DeviceManager;
+use \DateTime;
+use \DateTimeZone;
 
 class AppTest extends \PHPUnit\Framework\TestCase
 {
     protected $app;
 
-    public $testBaseUrl = 'http://localhost:8080/';
+    public $testBaseUrl = 'http://localhost/IIRRCloud/';
+
+    private $mockUser;
+
+    private $mockDevice;
 
     public function setUp()
     {
         $this->app = (new App())->get();
+        $userManager = new UserManager($this->app->getContainer()->db);
+        $this->mockUser = array('name' => 'Mock', 'surname' => 'User', 'email' => 'me@somewhere.org', 'password' => '1234');
+        $userManager->insertNewUser($this->mockUser);
+        $accountManager = new AccountManager($this->app->getContainer()->db);
+        $accountManager->setAccount($this->mockUser, new DateTime('now', new DateTimeZone('UTC')), 1);
+        $this->mockDevice = array('mac_id' => 'ABCDE1234567', 'password' => 'FreeLula', 'name' => 'Mock Device', 'model' => 'Fake', 'manufact_dt' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'));
+        
+        $deviceManager = new DeviceManager($this->app->getContainer()->db);
+        $deviceManager->insertNewDevice($this->mockDevice);
+        $deviceManager->associateToAccount($this->mockUser, $this->mockDevice, $accountManager);
     }
 
-    public function testSendParams() {
+    public function tearDown() {
+        $deviceManager = new DeviceManager($this->app->getContainer()->db);
+        $deviceManager->deleteDevice($this->mockDevice);
+        $accountManager = new AccountManager($this->app->getContainer()->db);
+        $accountManager->removeAccount($this->mockUser);
+        $userManager = new UserManager($this->app->getContainer()->db);
+        $userManager->deleteUser($this->mockUser);
+    }
+
+    public function testInsertMockUserOk() {
+        $userManager = new UserManager($this->app->getContainer()->db);
+        $this->assertTrue($userManager->userExists($this->mockUser));
+    }
+
+    public function testInsertMockAccountOk() {
+        $accountManager = new AccountManager($this->app->getContainer()->db);
+        $this->assertTrue($accountManager->accountForUserExists($this->mockUser));
+        $account = $accountManager->getAccountForUserId((int)$this->mockUser['uid']);
+        $this->assertFalse($accountManager->isAccountExpired($account));
+    }
+
+    public function testMockDeviceAssociated() {
+        $deviceManager = new DeviceManager($this->app->getContainer()->db);
+        $devices = $deviceManager->devicesIdForUserWithId((int)$this->mockUser['uid']);
+        $this->assertTrue(in_array($this->mockDevice['id'], $devices));
+        $this->assertTrue(count($devices) == 1);
+    }
+
+    public function testSendParamsNoLogin() {
         $datalogURL = '/v100/datalog/send-params';
         $msglogURL = '/v100/msglog/send-params';
         $invalidlogURL = '/v100/invalid/send-params';
@@ -62,12 +109,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $testNoAuth($msglogURL, [
             'auth' => ['invalidUser', 'password', 'digest']]);
         $testNoAuth($invalidlogURL, [
-            'auth' => ['invalidUser', 'password', 'digest']]);
-        
-        $response = $client->request('GET', $datalogURL, [
-            'auth' => ['username1', 'password1', 'digest']]);      
-        echo $response->getBody();
-    
+            'auth' => ['invalidUser', 'password', 'digest']]);   
     }
 
     /*

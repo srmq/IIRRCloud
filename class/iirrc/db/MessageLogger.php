@@ -160,10 +160,10 @@ class MessageLogger extends CSVLogger  {
 
     public function insertLine(array &$parsedData, int $deviceId, DateTime $rcvAt, string $originIP) {
         $parsedData['pk_tbDevice_id'] = $deviceId;
-        $parsedData['received_at'] = $rcvAt;
+        $parsedData['received_at'] = $rcvAt->format('Y-m-d H:i:s');
         $parsedData['origin_ip'] = $originIP;
 
-        $sql = 'INSERT INTO tbMsgLog(pk_tbDevice_id, reported_ts, received_at, origin_ip, fkMessageType, fkMessageCode, fkStopIrrigReason, fkExpWaterCurrSensorStatus, fkDetWaterCurrSensorStatus, fkExpWaterStartStatus, fkDetWaterStartStatus, fsUpdated) '
+        $sql = 'INSERT INTO tbMsgLog (pk_tbDevice_id, reported_ts, received_at, origin_ip, fkMessageType, fkMessageCode, fkStopIrrigReason, fkExpWaterCurrSensorStatus, fkDetWaterCurrSensorStatus, fkExpWaterStartStatus, fkDetWaterStartStatus, fsUpdated) '
                 . 'VALUES (:pk_tbDevice_id, :reported_ts, :received_at, :origin_ip, :fkMessageType, :fkMessageCode, :fkStopIrrigReason, :fkExpWaterCurrSensorStatus, :fkDetWaterCurrSensorStatus, :fkExpWaterStartStatus, :fkDetWaterStartStatus, :fsUpdated)';
         $stmt = $this->pdo->prepare($sql);
 

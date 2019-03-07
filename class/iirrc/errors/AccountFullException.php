@@ -22,18 +22,15 @@ declare(strict_types = 1);
 
 namespace iirrc\errors;
 
-abstract class ExceptionCodes {
-    private static $code = array(
-        ExpectedCSVBodyException::class => 1,
-        InvalidCSVLineException::class => 2,
-        IOException::class => 3,
-        UnsupportedOperationException::class => 4,
-        InvalidUserAccountException::class => 5,
-        AccountFullException::class => 6
-    );
+use \Exception;
+use \Throwable;
 
-    public static function getCode(string $className) : int {
-        return ExceptionCodes::code[$className];
+
+class AccountFullException extends Exception {
+    public function __construct ( string $message = "" , 
+            Throwable $previous = NULL ) {
+        $code = ExceptionCodes::getCode($this->class);
+        parent::__construct($message, $code, $previous);
     }
 }
 
