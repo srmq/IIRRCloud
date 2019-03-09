@@ -98,7 +98,7 @@ class MessageLogger extends CSVLogger  {
             throw new InvalidCSVLineException("Invalid message code", $lineNum);
         }
 
-        $result['reported_ts'] = $rcvDate;
+        $result['reported_ts'] = $rcvDate->format('Y-m-d H:i:s');
         $result['fkStopIrrigReason'] = null;
         $result['fkExpWaterCurrSensorStatus'] = null;
         $result['fkDetWaterCurrSensorStatus'] = null;

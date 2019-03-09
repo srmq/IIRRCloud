@@ -104,11 +104,11 @@ class CSVRouteHandler extends AbstractRouteHandler {
                     }
                     $dataLine = substr($dataToProcess, 0, $nlPos);
                     $parsedData = $this->csvLogger->parseLine($dataLine, $lineNum);
-                    if (AbstractRouteHandler::isInTheFuture($parsedData['reported_ts'])) {
+                    if (AbstractRouteHandler::isInTheFuture(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')))) {
                         throw new InvalidCSVLineException("Reported date in the future", $lineNum);
                     }
                     if(isset($lastOk)) {
-                        $currentMinusLast = $lastOk['reported_ts']->diff($parsedData['reported_ts']);
+                        $currentMinusLast = (new DateTime($lastOk['reported_ts'], new DateTimeZone('UTC')))->diff(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')));
                         if ($currentMinusLast->s < 0) {
                             throw new InvalidCSVLineException("Unordered data", $lineNum);
                         }
@@ -116,7 +116,7 @@ class CSVRouteHandler extends AbstractRouteHandler {
                     if($checkLastReported) {
                         $lastInsertedDB = $this->csvLogger->getLastReportedTS($deviceId);
                         if(!is_null($lastInsertedDB)) {
-                            $currentMinusLast = $lastInsertedDB->diff($parsedData['reported_ts']);
+                            $currentMinusLast = $lastInsertedDB->diff(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')));
                             if ($currentMinusLast->s < 0) {
                                 throw new InvalidCSVLineException("Line ts is before last inserted data", $lineNum);
                             }

@@ -44,7 +44,7 @@ class DataLogger extends CSVLogger {
         if (is_null($rcvDate)) {
             throw new InvalidCSVLineException("Date is invalid", $lineNum);
         }
-        $result['reported_ts'] = $rcvDate;
+        $result['reported_ts'] = $rcvDate->format('Y-m-d H:i:s');
         return $result;
     }
 

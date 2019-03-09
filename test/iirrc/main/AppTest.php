@@ -34,6 +34,7 @@ use \iirrc\db\AccountManager;
 use \iirrc\db\DeviceManager;
 use \DateTime;
 use \DateTimeZone;
+use \DateInterval;
 
 class AppTest extends \PHPUnit\Framework\TestCase
 {
@@ -44,6 +45,28 @@ class AppTest extends \PHPUnit\Framework\TestCase
     private $mockUser;
 
     private $mockDevice;
+
+    private function genDataLog($numLines) : string {
+        $nowTime = new DateTime('now', new DateTimeZone('UTC'));
+        $result = '';
+        $genRndPercentage = function() : float {
+            return (float)rand(0, 100)/100.0;
+        };
+        for ($i = 1; $i <= $numLines; $i++) {
+            $logTime = (clone $nowTime)->sub(DateInterval::createFromDateString("-" . $i . (($i == 1) ? " minute" : " minutes")));
+            $result .= $logTime->format('Ymd\THis');
+            $result .= ',';
+            $result .= $genRndPercentage();
+            $result .= ',';
+            $result .= $genRndPercentage();
+            $result .= ',';
+            $result .= $genRndPercentage();
+            $result .= ',';
+            $result .= rand(0,1);
+            $result .= "\n";          
+        }
+        return $result;
+    }
 
     public function setUp()
     {
@@ -89,9 +112,9 @@ class AppTest extends \PHPUnit\Framework\TestCase
     }
 
     public function testSendParamsNoLogin() {
-        $datalogURL = '/v100/datalog/send-params';
-        $msglogURL = '/v100/msglog/send-params';
-        $invalidlogURL = '/v100/invalid/send-params';
+        $datalogURL = 'v100/datalog/send-params';
+        $msglogURL = 'v100/msglog/send-params';
+        $invalidlogURL = 'v100/invalid/send-params';
         $client = new Client(['base_uri' => $this->testBaseUrl]);
         $testNoAuth = function(string $url, array $options = []) use ($client) {
             try {
@@ -110,6 +133,35 @@ class AppTest extends \PHPUnit\Framework\TestCase
             'auth' => ['invalidUser', 'password', 'digest']]);
         $testNoAuth($invalidlogURL, [
             'auth' => ['invalidUser', 'password', 'digest']]);   
+    }
+
+    public function testSendParamsMockDeviceLogin() {
+        $datalogURL = 'v100/datalog/send-params';
+        $msglogURL = 'v100/msglog/send-params';
+        $invalidlogURL = 'v100/invalid/send-params';
+        $client = new Client(['base_uri' => $this->testBaseUrl]);
+
+        $okTest = function(string $url) use ($client) {
+            $response = $client->request('GET', $url, 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest']]);
+            $this->assertTrue($response->getStatusCode() == 200);
+        };
+ 
+        $okTest($datalogURL);
+        $okTest($msglogURL);
+        try {
+            $client->request('GET', $invalidlogURL, 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest']]);
+            $this->assertTrue(false);
+        } catch (ClientException $ex) {
+            $this->assertTrue(true);
+        }
+
+    }
+
+    public function testInsertData() {
+        echo $this->genDataLog(50);
+        $this->assertTrue(true);
     }
 
     /*
