@@ -29,7 +29,7 @@ use \Throwable;
 class AccountFullException extends Exception {
     public function __construct ( string $message = "" , 
             Throwable $previous = NULL ) {
-        $code = ExceptionCodes::getCode($this->class);
+        $code = ExceptionCodes::getCode(AccountFullException::class);
         parent::__construct($message, $code, $previous);
     }
 }

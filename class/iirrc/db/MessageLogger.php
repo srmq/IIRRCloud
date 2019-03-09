@@ -151,6 +151,7 @@ class MessageLogger extends CSVLogger  {
             throw new IOException("input/output error when trying to get last reported TS");
         }
         $lastTS = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         $result = NULL;
         if(!empty($lastTS)) {
             $result = new DateTime($lastTS[0], new DateTimeZone('UTC'));
@@ -177,6 +178,29 @@ class MessageLogger extends CSVLogger  {
 
     public function getMaxAllowedLines() : int {
         return MAX_MSG_LINES;
+    }
+
+    public function removeDataForDevice(int $deviceId) : void {
+        $sql = 'DELETE FROM tbMsgLog WHERE pk_tbDevice_id = ?';
+        $stmt = $this->pdo->prepare($sql);
+        if (!$stmt->execute(array($deviceId))) {
+            throw new IOException("input/output error when trying to removeDataForDevice");
+        }
+    }
+
+    public function getDataBetween(int $deviceId, DateTime $fromTime, DateTime $toTime) : array {
+        $fromTimeStr = $fromTime->format('Y-m-d H:i:s');
+        $toTimeStr = $toTime>format('Y-m-d H:i:s');
+        $sql = 'SELECT FROM * tbMsgLog WHERE pk_tbDevice_id = :tbDevice_id AND reported_ts BETWEEN :fromts AND :tots';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(':tbDevice_id', $deviceId);
+        $stmt->bindParam(':fromts', $fromTimeStr);
+        $stmt->bindParam(':tots', $toTimeStr);
+        if (!$stmt->execute()) {
+            throw new IOException("input/output error when trying to getDataBetween");
+        }
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $result;
     }
 
 

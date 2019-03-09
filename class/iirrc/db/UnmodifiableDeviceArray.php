@@ -45,6 +45,7 @@ class UnmodifiableDeviceArray implements ArrayAccess {
             throw new IOException("input/output error when calling offsetExists");
         }
         $macId = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         return !empty($macId);
 
     }
@@ -57,6 +58,7 @@ class UnmodifiableDeviceArray implements ArrayAccess {
             throw new IOException("input/output error when calling offsetGet");
         }
         $macPass = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         if (!empty($macPass)) {
             $result = $macPass[0];
         }

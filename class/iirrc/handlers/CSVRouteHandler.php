@@ -27,6 +27,7 @@ use \Psr\Http\Message\ResponseInterface as Response;
 use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use \Slim\Container;
 use \DateTime;
+use \DateTimeZone;
 use iirrc\errors\ExpectedCSVBodyException;
 use iirrc\errors\IOException;
 use iirrc\errors\InvalidCSVLineException;
@@ -36,6 +37,8 @@ use iirrc\db\UserManager;
 use iirrc\db\AccountManager;
 use iirrc\db\DeviceManager;
 use \LogicException;
+use iirrc\main\App;
+use iirrc\util\RESTOpStatusCodes;
 
 require_once('conf/config.php');
 
@@ -67,13 +70,13 @@ class CSVRouteHandler extends AbstractRouteHandler {
             $lineNum = 0;
             $deviceManager = new DeviceManager($this->container->db);
             $device = $deviceManager->getDeviceByMac($deviceMac);
-            $deviceId = $device['id'];
+            $deviceId = (int)$device['id'];
             if($deviceId === -1) {
-                throw new LogicException("Could not find device id for macaddr");
+                throw new LogicException("Could not find device id for macaddr: {$deviceMac}");
             }
             if(!empty($device['tbAccount_tbUser_uid'])) {
-                $accountManager = new AccountMager($this->container->db);
-                $userAccount = $accountManager->getAccountForUserId($device['tbAccount_tbUser_uid']);
+                $accountManager = new AccountManager($this->container->db);
+                $userAccount = $accountManager->getAccountForUserId((int)$device['tbAccount_tbUser_uid']);
                 if(empty($userAccount)) {
                     throw new LogicException("Reference to user account that do not exist (id: {$device['tbAccount_tbUser_uid']})");
                 }
@@ -94,10 +97,10 @@ class CSVRouteHandler extends AbstractRouteHandler {
             unset($deviceManager);
             while(!$stream->eof()) {
                 $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
-                $dataChunk = strtr($dataChunk, array('\r' => ''));
+                $dataChunk = strtr($dataChunk, array("\r" => ''));
                 $dataToProcess .= $dataChunk;
                 unset($dataChunk);
-                while (($nlPos = strpos($dataToProcess, '\n')) >= 0) {
+                while (($nlPos = strpos($dataToProcess, "\n"))) {
                     $lineNum++;
                     if ($lineNum > MAXLINES) {
                         throw new InvalidCSVLineException("More than " . MAXLINES . " in request", lineNum);
@@ -131,7 +134,7 @@ class CSVRouteHandler extends AbstractRouteHandler {
                     if ($dataToProcess === false) {
                         $dataToProcess = "";
                     }
-                } 
+                }
                 if(strlen($dataToProcess) >= BUFSIZE) {
                         throw new InvalidCSVLineException("Line too long", $lineNum);
                 }
@@ -145,12 +148,16 @@ class CSVRouteHandler extends AbstractRouteHandler {
             $result['numprocess'] = $lineNum;
             $this->response->getBody()->write(json_encode($result));
         } catch(InvalidCSVLineException $ex) {
+            $classEx = get_class($ex);
+            App::getContainer()->logger->addError("Got {$classEx} at {$ex->getFile()} line {$ex->getLine()}. CSVLine: {$ex->getLineNum()}. Message: {$ex->getMessage()}. Code: {$ex->getCode()}.", $ex->getTrace());
             $result = array();
             $result['status'] = RESTOpStatusCodes::ERR;
             $result['errno'] = $ex->getCode();
             $result['errline'] = $ex->getLineNum();
             $this->response->getBody()->write(json_encode($result));
         } catch(Exception $ex) {
+            $classEx = get_class($ex);
+            App::getContainer()->logger->addError("Got {$classEx} at {$ex->getFile()} line {$ex->getLine()}. Message: {$ex->getMessage()}. Code: {$ex->getCode()}.", $ex->getTrace());
             $result = array();
             $result['status'] = RESTOpStatusCodes::ERR;
             $result['errno'] = $ex->getCode();

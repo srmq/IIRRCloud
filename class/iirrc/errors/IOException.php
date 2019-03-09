@@ -20,15 +20,16 @@
 
 declare(strict_types = 1);
 
+namespace iirrc\errors;
+
 use \Exception;
 use \Throwable;
 
-namespace iirrc\errors;
 
 class IOException extends Exception {
     public function __construct ( string $message = "" , 
             Throwable $previous = NULL ) {
-        $code = ExceptionCodes::getCode($this->class);
+        $code = ExceptionCodes::getCode(IOException::class);
         parent::__construct($message, $code, $previous);
     }
 }

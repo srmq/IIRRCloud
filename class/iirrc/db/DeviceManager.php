@@ -45,12 +45,12 @@ class DeviceManager  {
             }
         };
         $exIfNotExists($device, array_fill_keys(array('id', 'mac_id', 'password'), ''));
-        $sql = 'UPDATE tbDevice SET mac_id=:mac_id, password=:password, name=:name, model=:model, manufact_dt=:manufact_dt, fst_activation=:fst_activation, retired_at=:retired_at WHERE id = :id';
+        $sql = 'UPDATE tbDevice SET mac_id=:mac_id, tbAccount_tbUser_uid = :tbAccount_tbUser_uid, password=:password, name=:name, model=:model, manufact_dt=:manufact_dt, fst_activation=:fst_activation, retired_at=:retired_at WHERE id = :id';
         $stmt = $this->pdo->prepare($sql);
         foreach ($device as $key => &$val) {
             $stmt->bindParam(':' . $key, $val);
         }
-        $optional = array_fill_keys(array('name', 'model', 'manufact_dt', 'fst_activation', 'retired_at'), '');
+        $optional = array_fill_keys(array('tbAccount_tbUser_uid', 'name', 'model', 'manufact_dt', 'fst_activation', 'retired_at'), '');
         foreach($optional as $key => $val) {
             if(!array_key_exists($key, $device)) {
                 $stmt->bindValue(':' . $key, null, PDO::PARAM_NULL);
@@ -102,6 +102,7 @@ class DeviceManager  {
             throw new IOException("input/output error when trying to get device id");
         }
         $deviceId = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         $result = -1;
         if(!empty($deviceId)) {
             $result = (int)$deviceId[0];
@@ -116,6 +117,7 @@ class DeviceManager  {
             throw new IOException("input/output error when trying to getDeviceByMac");
         }
         $device = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
         return $device;
     }
 

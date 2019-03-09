@@ -20,15 +20,16 @@
 
 declare(strict_types = 1);
 
+namespace iirrc\errors;
+
 use \InvalidArgumentException;
 use \Throwable;
 
-namespace iirrc\errors;
 
 class ExpectedCSVBodyException extends InvalidArgumentException {
     public function __construct ( string $message = "" , 
             Throwable $previous = NULL ) {
-        $code = ExceptionCodes::getCode($this->class);
+        $code = ExceptionCodes::getCode(ExpectedCSVBodyException::class);
         parent::__construct($message, $code, $previous);
     }
 }

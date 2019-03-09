@@ -72,6 +72,8 @@ class App {
                 $db['user'], $db['pass']);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $timeZone = '+00:00';
+            $pdo->exec("SET time_zone = '{$timeZone}'");
             return $pdo;
         };
 
@@ -151,7 +153,7 @@ class App {
                         $deviceId = $deviceManager->getDeviceId($deviceMac);
                         unset($deviceManager);
                         if($deviceId === -1) {
-                            throw new LogicException("Could not find device id for macaddr");
+                            throw new LogicException("Could not find device id for MAC: {$deviceMac}");
                         }
                         
                         $params = array();

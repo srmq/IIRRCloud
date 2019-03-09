@@ -51,6 +51,7 @@ class AccountManager  {
             throw new IOException("input/output error when calling getAccountForUserId");
         }
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
         return $result;
     }
 
@@ -66,6 +67,7 @@ class AccountManager  {
             throw new IOException("input/output error when calling userExists");
         }
         $uid = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         return !empty($uid);
     }
 

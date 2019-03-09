@@ -34,7 +34,7 @@ class DataLogger extends CSVLogger {
 
     public function parseLine(string $datalogLine, int $lineNum) : array {
         $result = array();
-        $n = sscanf($datalogLine, '%15s,%F,%F,%F,%d', $tsString, 
+        $n = sscanf($datalogLine, '%15s,%f,%f,%f,%d', $tsString, 
                 $result['moist_surface'], $result['moist_middle'], $result['moist_deep'],
                 $result['isIrrigating']);
         if ($n != 5) {
@@ -55,6 +55,7 @@ class DataLogger extends CSVLogger {
             throw new IOException("input/output error when trying to get last reported TS");
         }
         $lastTS = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         $result = NULL;
         if(!empty($lastTS)) {
             $result = new DateTime($lastTS[0], new DateTimeZone('UTC'));
@@ -81,6 +82,31 @@ class DataLogger extends CSVLogger {
 
     public function getMaxAllowedLines() : int {
         return MAX_LOG_LINES;
+    }
+
+    public function removeDataForDevice(int $deviceId) : void {
+        $sql = 'DELETE FROM tbIrrigLog WHERE tbDevice_id = ?';
+        $stmt = $this->pdo->prepare($sql);
+        if (!$stmt->execute(array($deviceId))) {
+            throw new IOException("input/output error when trying to removeDataForDevice");
+        }
+    }
+
+    public function getDataBetween(int $deviceId, DateTime $fromTime, DateTime $toTime) : array {
+        $fromTimeStr = $fromTime->format('Y-m-d H:i:s');
+        $toTimeStr = $toTime->format('Y-m-d H:i:s');
+        
+        $sql = 'SELECT * FROM `tbIrrigLog` WHERE `tbDevice_id` = :tbDevice_id AND `reported_ts` >= TIMESTAMP(:fromts) AND `reported_ts` <= TIMESTAMP(:tots)';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindParam(':tbDevice_id', $deviceId, PDO::PARAM_INT);
+        $stmt->bindParam(':fromts', $fromTimeStr, PDO::PARAM_STR);
+        $stmt->bindParam(':tots', $toTimeStr, PDO::PARAM_STR);
+
+        if (!$stmt->execute()) {
+            throw new IOException("input/output error when trying to getDataBetween");
+        }
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $result;
     }
 
 }

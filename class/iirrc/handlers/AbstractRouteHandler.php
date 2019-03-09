@@ -40,11 +40,11 @@ abstract class AbstractRouteHandler implements RequestHandler {
         $this->container = $container;
     }
 
-    public static function isCSVMedia(Request $request) : boolean {
+    public static function isCSVMedia(Request $request) : bool {
         return $request->getMediaType() === "text/csv";
     }
 
-    public static function isInTheFuture(DateTime $dt) : boolean {
+    public static function isInTheFuture(DateTime $dt) : bool {
         $nowMinusDt = $dt->diff(new DateTime('now', new DateTimeZone('UTC')));
         if ($nowMinusDt->s < -300) return true;
         return false;

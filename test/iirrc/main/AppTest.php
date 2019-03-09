@@ -29,9 +29,11 @@ use \iirrc\main\App;
 use \iirrc\util\HTTPUtil;
 use \GuzzleHttp\Client;
 use \GuzzleHttp\Exception\ClientException;
+use \GuzzleHttp\Psr7;
 use \iirrc\db\UserManager;
 use \iirrc\db\AccountManager;
 use \iirrc\db\DeviceManager;
+use \iirrc\db\DataLogger;
 use \DateTime;
 use \DateTimeZone;
 use \DateInterval;
@@ -52,8 +54,8 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $genRndPercentage = function() : float {
             return (float)rand(0, 100)/100.0;
         };
-        for ($i = 1; $i <= $numLines; $i++) {
-            $logTime = (clone $nowTime)->sub(DateInterval::createFromDateString("-" . $i . (($i == 1) ? " minute" : " minutes")));
+        for ($i = $numLines; $i >= 1; $i--) {
+            $logTime = (clone $nowTime)->sub(DateInterval::createFromDateString($i . (($i == 1) ? " minute" : " minutes")));
             $result .= $logTime->format('Ymd\THis');
             $result .= ',';
             $result .= $genRndPercentage();
@@ -159,9 +161,31 @@ class AppTest extends \PHPUnit\Framework\TestCase
 
     }
 
+    
     public function testInsertData() {
-        echo $this->genDataLog(50);
-        $this->assertTrue(true);
+        $sendDatalogURL = 'v100/datalog/send';
+        $totLines = 50;
+        $client = new Client(['base_uri' => $this->testBaseUrl]);
+        $body = $this->genDataLog($totLines);
+        try {
+            $response = $client->request('POST', $sendDatalogURL, 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest'], 
+             'body' => $body,
+             'headers' => ['Content-Type' => 'text/csv']
+            ]);
+         } catch (\GuzzleHttp\Exception\ServerException $ex) {
+            echo ((string)\GuzzleHttp\Psr7\str($ex->getResponse()));
+            throw $ex;
+         }
+ 
+        
+        $dataLogger = new DataLogger($this->app->getContainer()->db);
+
+        $insertedData = $dataLogger->getDataBetween((int)$this->mockDevice['id'], new DateTime('1970-01-01 0:00:01'), new DateTime('now', new DateTimeZone('UTC')));
+        $this->assertTrue(count($insertedData) == $totLines);
+        $dataLogger->removeDataForDevice((int)$this->mockDevice['id']);
+        $insertedData = $dataLogger->getDataBetween((int)$this->mockDevice['id'], new DateTime('1970-01-01 0:00:01'), new DateTime('now', new DateTimeZone('UTC')));
+        $this->assertTrue(count($insertedData) == 0);
     }
 
     /*

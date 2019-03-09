@@ -29,7 +29,7 @@ use \Throwable;
 class UnsupportedOperationException extends Exception {
     public function __construct ( string $message = "" , 
             Throwable $previous = NULL ) {
-        $code = ExceptionCodes::getCode($this->class);
+        $code = ExceptionCodes::getCode(UnsupportedOperationException::class);
         parent::__construct($message, $code, $previous);
     }
 }

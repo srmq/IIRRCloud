@@ -20,10 +20,11 @@
 
 declare(strict_types = 1);
 
+namespace iirrc\errors;
+
 use \InvalidArgumentException;
 use \Throwable;
 
-namespace iirrc\errors;
 
 class InvalidCSVLineException extends InvalidArgumentException {
     private $lineNum;
@@ -31,7 +32,7 @@ class InvalidCSVLineException extends InvalidArgumentException {
             int $lineNum, 
             Throwable $previous = NULL ) {
         $this->lineNum = $lineNum;
-        $code = ExceptionCodes::getCode($this->class);
+        $code = ExceptionCodes::getCode(InvalidCSVLineException::class);
         parent::__construct($message, $code, $previous);
     }
     public function getLineNum() : int {

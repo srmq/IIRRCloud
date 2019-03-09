@@ -33,7 +33,7 @@ abstract class ExceptionCodes {
     );
 
     public static function getCode(string $className) : int {
-        return ExceptionCodes::code[$className];
+        return ExceptionCodes::$code[$className];
     }
 }
 

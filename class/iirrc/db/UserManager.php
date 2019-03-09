@@ -47,6 +47,7 @@ class UserManager  {
             throw new IOException("input/output error when calling userExists");
         }
         $uid = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
         return !empty($uid);
     }
 
