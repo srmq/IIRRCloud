@@ -28,6 +28,7 @@ use \Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 use \Slim\Container;
 use \DateTime;
 use \DateTimeZone;
+use \InvalidArgumentException;
 
 abstract class AbstractRouteHandler implements RequestHandler {
     protected $args;
@@ -44,10 +45,21 @@ abstract class AbstractRouteHandler implements RequestHandler {
         return $request->getMediaType() === "text/csv";
     }
 
-    public static function isInTheFuture(DateTime $dt) : bool {
+    public static function isInTheFuture(DateTime $dt, int $toleranceSeconds = 300) : bool {
+        if ($toleranceSeconds < 0 || $toleranceSeconds >= 3600) {
+            throw new InvalidArgumentException("toleranceSeconds should be > 0 and < 3600");
+        }
         $nowMinusDt = $dt->diff(new DateTime('now', new DateTimeZone('UTC')));
-        if ($nowMinusDt->s < -300) return true;
-        return false;
+        if ($nowMinusDt->invert == 0) return false;
+        else if (($nowMinusDt->y > 0) ||
+                 ($nowMinusDt->m > 0) ||
+                 ($nowMinusDt->d > 0) ||
+                 ($nowMinusDt->h > 0)
+                ) {
+            return true;
+        } else if (((60*$nowMinusDt->i) + $nowMinusDt->s) > $toleranceSeconds) {
+            return true;
+        } else return false;
     }
 
 
