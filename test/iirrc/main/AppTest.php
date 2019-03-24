@@ -34,6 +34,7 @@ use \iirrc\db\UserManager;
 use \iirrc\db\AccountManager;
 use \iirrc\db\DeviceManager;
 use \iirrc\db\DataLogger;
+use \iirrc\db\MessageLogger;
 use \DateTime;
 use \DateTimeZone;
 use \DateInterval;
@@ -47,6 +48,71 @@ class AppTest extends \PHPUnit\Framework\TestCase
     private $mockUser;
 
     private $mockDevice;
+
+    private function genMsgLog($numLines) : string {
+        $nowTime = new DateTime('now', new DateTimeZone('UTC'));
+        $result = '';
+        $msgTypesRev = array_flip(MessageLogger::messageTypes);
+        $msgCodesRev = array_flip(MessageLogger::messageCodes);
+        $waterCurrSensorStatusRev = array_flip(MessageLogger::waterCurrSensorStatus);
+        $waterStartStatusRev = array_flip(MessageLogger::waterStartStatus);
+        $stopIrrigReasonsRev = array_flip(MessageLogger::stopIrrigReasons);
+
+        $rndArrayValue = function(array $arr, $exceptValue) {
+            do {
+                $index = rand(0, count($arr) - 1);
+                $mySlice = array_slice($arr, $index, 1, true);
+                $result = reset($mySlice);
+            } while ($result == $exceptValue);
+            return $result;
+        };
+
+        $rndWaterCurrSensorStatus = function($diffFrom = -1) use ($rndArrayValue, $waterCurrSensorStatusRev) : int {
+            return $rndArrayValue($waterCurrSensorStatusRev, $diffFrom);
+        };
+        $genRndMsgInconsistWaterStatus = function() use ($rndWaterCurrSensorStatus, $msgTypesRev, $msgCodesRev, $waterCurrSensorStatusRev) : string {
+            $myResult = (string)$msgTypesRev['MSG_ERR'] . ',';
+            $myResult .= $msgCodesRev['MSG_INCONSIST_WATER_CURRSTATUS'] . ',';
+            $myResult .= $rndWaterCurrSensorStatus($waterCurrSensorStatusRev['WATER_CURRFLOWING'])  . ',';
+            $myResult .= $waterCurrSensorStatusRev['WATER_CURRFLOWING'];
+            return $myResult;
+        };
+        $genRndMsgStartWater = function() use ($rndArrayValue, $msgTypesRev, $msgCodesRev, $waterStartStatusRev) : string {
+            $startOk = rand(0,1);
+            if ($startOk == 1) {
+                $myResult = (string)$msgTypesRev['MSG_INFO'] . ',';
+                $myResult .= $msgCodesRev['MSG_STARTED_IRRIG'] . ',';
+                $myResult .= $waterStartStatusRev['WATER_STARTOK'] . ',';
+                $myResult .= $waterStartStatusRev['WATER_STARTOK'];
+            } else {
+                $myResult = (string)$msgTypesRev['MSG_WARN'] . ',';
+                $myResult .= $msgCodesRev['MSG_STARTED_IRRIG'] . ',';
+                $myResult .= $waterStartStatusRev['WATER_STARTOK'] . ',';
+                $myResult .= $rndArrayValue($waterStartStatusRev, $waterStartStatusRev['WATER_STARTOK']);
+            }
+            return $myResult;
+        };
+
+        $genRndMsgStopIrrig = function() use ($rndArrayValue, $msgTypesRev, $msgCodesRev, $stopIrrigReasonsRev) : string {
+            $updateFSResult = rand(0,1);            
+            $myResult = (string)(($updateFSResult == 1) ? $msgTypesRev['MSG_INFO'] : $msgTypesRev['MSG_WARN']) . ',';
+            $myResult .=  $msgCodesRev['MSG_STOPPED_IRRIG'] . ',';
+            $myResult .= $rndArrayValue($stopIrrigReasonsRev, -1) . ',';
+            $myResult .= $updateFSResult;
+            
+            return $myResult;
+        };
+        $genRndMsgArr = array($genRndMsgInconsistWaterStatus, $genRndMsgStartWater, $genRndMsgStopIrrig);
+
+        for ($i = $numLines; $i >= 1; $i--) {
+            $logTime = (clone $nowTime)->sub(DateInterval::createFromDateString($i . (($i == 1) ? " minute" : " minutes")));
+            $result .= $logTime->format('Ymd\THis');
+            $result .= ',';
+            $index = rand(0, count($genRndMsgArr) - 1);
+            $result .= $genRndMsgArr[$index]() . "\n";
+        }        
+        return $result;
+    }
 
     private function genDataLog($numLines) : string {
         $nowTime = new DateTime('now', new DateTimeZone('UTC'));
@@ -186,6 +252,34 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $dataLogger->removeDataForDevice((int)$this->mockDevice['id']);
         $insertedData = $dataLogger->getDataBetween((int)$this->mockDevice['id'], new DateTime('1970-01-01 0:00:01'), new DateTime('now', new DateTimeZone('UTC')));
         $this->assertTrue(count($insertedData) == 0);
+    }
+
+    public function testInsertMessages() {
+        $sendMesssagelogURL = 'v100/msglog/send';
+
+        $totLines = 50;
+        $client = new Client(['base_uri' => $this->testBaseUrl]);
+        $body = $this->genMsgLog($totLines);
+
+        try {
+            $response = $client->request('POST', $sendMesssagelogURL, 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest'], 
+             'body' => $body,
+             'headers' => ['Content-Type' => 'text/csv']
+            ]);
+         } catch (\GuzzleHttp\Exception\ServerException $ex) {
+            echo ((string)\GuzzleHttp\Psr7\str($ex->getResponse()));
+            throw $ex;
+         }
+
+         $messageLogger = new MessageLogger($this->app->getContainer()->db);
+         $insertedMessages = $messageLogger->getDataBetween((int)$this->mockDevice['id'], new DateTime('1970-01-01 0:00:01'), new DateTime('now', new DateTimeZone('UTC')));
+         $this->assertTrue(count($insertedMessages) == $totLines);
+         $messageLogger->removeDataForDevice((int)$this->mockDevice['id']);
+         $insertedMessages = $messageLogger->getDataBetween((int)$this->mockDevice['id'], new DateTime('1970-01-01 0:00:01'), new DateTime('now', new DateTimeZone('UTC')));
+         $this->assertTrue(count($insertedMessages) == 0);         
+
+
     }
 
     /*

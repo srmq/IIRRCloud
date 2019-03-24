@@ -32,54 +32,49 @@ use \DateTime;
 
 class MessageLogger extends CSVLogger  {
 
-    private $messageTypes;
-    private $messageCodes;
-    private $stopIrrigReasons;
-    private $waterCurrSensorStatus;
-    private $waterStartStatus;
+    const messageTypes = array(
+        0 => 'MSG_DEBUG',
+        1 => 'MSG_INFO',
+        2 => 'MSG_WARN' ,
+        3 => 'MSG_ERR'
+    );
+
+    const messageCodes = array(
+        0 => 'MSG_INCONSIST_WATER_CURRSTATUS',
+        1 => 'MSG_STOPPED_IRRIG',
+        2 => 'MSG_STARTED_IRRIG'
+    );
+
+    const stopIrrigReasons = array(
+        0 => 'STOPIRRIG_SLOTEND',
+        1 => 'STOPIRRIG_SURFACESAT',
+        2 => 'STOPIRRIG_MIDDLESAT',
+        3 => 'STOPIRRIG_DEEPINCREASE',
+        4 => 'STOPIRRIG_MAXTIMEDAY',
+        5 => 'STOPIRRIG_WATEREMPTY'
+    );
+
+    const waterCurrSensorStatus  = array(
+        0 => 'WATER_CURRFLOWING',
+        1 => 'WATER_CURRSTOP',
+        2 => 'WATER_CURREMPTY',
+        3 => 'WATER_CURRNOCONF'
+    );
+
+    const waterStartStatus = array(
+        0 => 'WATER_STARTOK',
+        1 => 'WATER_STARTNOACTION',
+        2 => 'WATER_STARTEMPTY',
+        3 => 'WATER_STARTNOCONF'
+    );
 
     public function __construct(PDO $pdo) {
         parent::__construct($pdo);
-        $this->messageTypes = array(
-            0 => 'MSG_DEBUG',
-            1 => 'MSG_INFO',
-            2 => 'MSG_WARN' ,
-            3 => 'MSG_ERR'
-        );
-
-        $this->messageCodes = array(
-            0 => 'MSG_INCONSIST_WATER_CURRSTATUS',
-            1 => 'MSG_STOPPED_IRRIG',
-            2 => 'MSG_STARTED_IRRIG'
-        );
-
-        $this->stopIrrigReasons = array(
-            0 => 'STOPIRRIG_SLOTEND',
-            1 => 'STOPIRRIG_SURFACESAT',
-            2 => 'STOPIRRIG_MIDDLESAT',
-            3 => 'STOPIRRIG_DEEPINCREASE',
-            4 => 'STOPIRRIG_MAXTIMEDAY',
-            5 => 'STOPIRRIG_WATEREMPTY'
-        );
-
-        $this->waterCurrSensorStatus = array(
-            0 => 'WATER_CURRFLOWING',
-            1 => 'WATER_CURRSTOP',
-            2 => 'WATER_CURREMPTY',
-            3 => 'WATER_CURRNOCONF'
-        );
-
-        $this->waterStartStatus = array(
-            0 => 'WATER_STARTOK',
-            1 => 'WATER_STARTNOACTION',
-            2 => 'WATER_STARTEMPTY',
-            3 => 'WATER_STARTNOCONF'
-        );
     }
 
     public function parseLine(string $msgLine, int $lineNum) : array {
         $result = array(); 
-        $n = sscanf($datalogLine, '%15s,%d,%d,%d,%d', $tsString, 
+        $n = sscanf($msgLine, '%15s,%d,%d,%d,%d', $tsString, 
                 $result['fkMessageType'], $result['fkMessageCode'], $par4,
                 $par5);
         if ($n != 5) {
@@ -90,11 +85,11 @@ class MessageLogger extends CSVLogger  {
             throw new InvalidCSVLineException("Date is invalid", $lineNum);
         }
 
-        if(!array_key_exists($result['fkMessageType'], $this->messageTypes)) {
+        if(!array_key_exists($result['fkMessageType'], self::messageTypes)) {
             throw new InvalidCSVLineException("Invalid message type", $lineNum);
         }
 
-        if(!array_key_exists($result['fkMessageCode'], $this->messageCodes)) {
+        if(!array_key_exists($result['fkMessageCode'], self::messageCodes)) {
             throw new InvalidCSVLineException("Invalid message code", $lineNum);
         }
 
@@ -106,19 +101,19 @@ class MessageLogger extends CSVLogger  {
         $result['fkDetWaterStartStatus'] = null;
         $result['fsUpdated'] = null;
 
-        switch($this->messageCodes[$result['fkMessageCode']]) {
+        switch(self::messageCodes[$result['fkMessageCode']]) {
             case 'MSG_INCONSIST_WATER_CURRSTATUS':
-                if(!array_key_exists($par4, $this->waterCurrSensorStatus)) {
+                if(!array_key_exists($par4, self::waterCurrSensorStatus)) {
                     throw new InvalidCSVLineException("Invalid ExpWaterCurrSensorStatus", $lineNum);
                 }
                 $result['fkExpWaterCurrSensorStatus'] = $par4;
-                if(!array_key_exists($par5, $this->waterCurrSensorStatus)) {
+                if(!array_key_exists($par5, self::waterCurrSensorStatus)) {
                     throw new InvalidCSVLineException("Invalid DetWaterCurrSensorStatus", $lineNum);
                 }
                 $result['fkDetWaterCurrSensorStatus'] = $par5;
                 break;
             case 'MSG_STOPPED_IRRIG':
-                if(!array_key_exists($par4, $this->stopIrrigReasons)) {
+                if(!array_key_exists($par4, self::stopIrrigReasons)) {
                     throw new InvalidCSVLineException("Invalid StopIrrigReason", $lineNum);
                 }
                 $result['fkStopIrrigReason'] = $par4;
@@ -128,11 +123,11 @@ class MessageLogger extends CSVLogger  {
                 $result['fsUpdated'] = $par5;
                 break;
             case 'MSG_STARTED_IRRIG':
-                if(!array_key_exists($par4, $this->waterStartStatus)) {
+                if(!array_key_exists($par4, self::waterStartStatus)) {
                     throw new InvalidCSVLineException("Invalid ExpWaterStartStatus", $lineNum);
                 }
                 $result['fkExpWaterStartStatus'] = $par4;
-                if(!array_key_exists($par5, $this->waterStartStatus)) {
+                if(!array_key_exists($par5, self::waterStartStatus)) {
                     throw new InvalidCSVLineException("Invalid DetWaterStartStatus", $lineNum);
                 }
                 $result['fkDetWaterStartStatus'] = $par5;
@@ -190,8 +185,8 @@ class MessageLogger extends CSVLogger  {
 
     public function getDataBetween(int $deviceId, DateTime $fromTime, DateTime $toTime) : array {
         $fromTimeStr = $fromTime->format('Y-m-d H:i:s');
-        $toTimeStr = $toTime>format('Y-m-d H:i:s');
-        $sql = 'SELECT FROM * tbMsgLog WHERE pk_tbDevice_id = :tbDevice_id AND reported_ts BETWEEN :fromts AND :tots';
+        $toTimeStr = $toTime->format('Y-m-d H:i:s');
+        $sql = 'SELECT * FROM tbMsgLog WHERE pk_tbDevice_id = :tbDevice_id AND reported_ts BETWEEN :fromts AND :tots';
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindParam(':tbDevice_id', $deviceId);
         $stmt->bindParam(':fromts', $fromTimeStr);
