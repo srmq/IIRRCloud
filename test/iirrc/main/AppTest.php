@@ -196,11 +196,11 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $testNoAuth($msglogURL);
         $testNoAuth($invalidlogURL);
         $testNoAuth($datalogURL, [
-            'auth' => ['invalidUser', 'password', 'digest']]);
+            'auth' => ['invalidUser', 'password']]);
         $testNoAuth($msglogURL, [
-            'auth' => ['invalidUser', 'password', 'digest']]);
+            'auth' => ['invalidUser', 'password']]);
         $testNoAuth($invalidlogURL, [
-            'auth' => ['invalidUser', 'password', 'digest']]);   
+            'auth' => ['invalidUser', 'password']]);   
     }
 
     public function testSendParamsMockDeviceLogin() {
@@ -211,7 +211,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
 
         $okTest = function(string $url) use ($client) {
             $response = $client->request('GET', $url, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest']]);
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']]]);
             $this->assertTrue($response->getStatusCode() == 200);
         };
  
@@ -219,7 +219,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $okTest($msglogURL);
         try {
             $client->request('GET', $invalidlogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest']]);
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']]]);
             $this->assertTrue(false);
         } catch (ClientException $ex) {
             $this->assertTrue(true);
@@ -235,7 +235,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $body = $this->genDataLog($totLines);
         try {
             $response = $client->request('POST', $sendDatalogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest'], 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']], 
              'body' => $body,
              'headers' => ['Content-Type' => 'text/csv']
             ]);
@@ -263,7 +263,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
 
         try {
             $response = $client->request('POST', $sendMesssagelogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password'], 'digest'], 
+            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']], 
              'body' => $body,
              'headers' => ['Content-Type' => 'text/csv']
             ]);
@@ -288,7 +288,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $client = new Client(['base_uri' => 'http://localhost:8080/']);
         // Send a request to https://foo.com/api/test
         $response = $client->request('GET', '/hello/srmqthegreat', [
-            'auth' => ['username1', 'password1', 'digest']]);      
+            'auth' => ['username1', 'password1']]);      
         //$parsedAuthInfo = HTTPUtil::parseAuthHeader($response);
         echo ">>>>GUZZLE: \n";
         echo ((string)$response->getBody()) . "\n";

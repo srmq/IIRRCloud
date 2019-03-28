@@ -77,7 +77,7 @@ class App {
             return $pdo;
         };
 
-        $queue[] = (new \Middlewares\DigestAuthentication(new UnmodifiableDeviceArray(App::getContainer()->db)))->attribute(USERNAME_ATTR);
+        $queue[] = (new \Middlewares\BasicAuthentication(new UnmodifiableDeviceArray(App::getContainer()->db)))->attribute(USERNAME_ATTR);
         $queue[] = new \Middlewares\ClientIp();
         $queue[] = new DateAdder();
         $queue[] = new \Middlewares\RequestHandler();
