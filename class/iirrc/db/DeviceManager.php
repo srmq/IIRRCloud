@@ -44,8 +44,8 @@ class DeviceManager  {
                 }
             }
         };
-        $exIfNotExists($device, array_fill_keys(array('id', 'mac_id', 'password'), ''));
-        $sql = 'UPDATE tbDevice SET mac_id=:mac_id, tbAccount_tbUser_uid = :tbAccount_tbUser_uid, password=:password, name=:name, model=:model, manufact_dt=:manufact_dt, fst_activation=:fst_activation, retired_at=:retired_at WHERE id = :id';
+        $exIfNotExists($device, array_fill_keys(array('id', 'mac_id', 'login', 'password'), ''));
+        $sql = 'UPDATE tbDevice SET mac_id=:mac_id, login=:login, tbAccount_tbUser_uid = :tbAccount_tbUser_uid, password=:password, name=:name, model=:model, manufact_dt=:manufact_dt, fst_activation=:fst_activation, retired_at=:retired_at WHERE id = :id';
         $stmt = $this->pdo->prepare($sql);
         foreach ($device as $key => &$val) {
             $stmt->bindParam(':' . $key, $val);
@@ -76,7 +76,7 @@ class DeviceManager  {
             }
         };
         $exIfNotExists($device, array_fill_keys(array('mac_id', 'password'), ''));
-        $sql = 'INSERT INTO tbDevice (mac_id, password, name, model, manufact_dt, fst_activation, retired_at) VALUES (:mac_id, :password, :name, :model, :manufact_dt, :fst_activation, :retired_at)';
+        $sql = 'INSERT INTO tbDevice (mac_id, login, password, name, model, manufact_dt, fst_activation, retired_at) VALUES (:mac_id, :login, :password, :name, :model, :manufact_dt, :fst_activation, :retired_at)';
         $stmt = $this->pdo->prepare($sql);
         foreach ($device as $key => &$val) {
             $stmt->bindParam(':' . $key, $val);
@@ -110,6 +110,23 @@ class DeviceManager  {
         return $result;
     }
 
+    public function getDeviceIdByLogin(string $login) : int {
+        
+        $sql = 'SELECT id FROM tbDevice WHERE login = ? LIMIT 1';
+        $stmt = $this->pdo->prepare($sql);
+        if (!$stmt->execute(array($login))) {
+            throw new IOException("input/output error when trying to get device id");
+        }
+        $deviceId = $stmt->fetch(PDO::FETCH_NUM);
+        $stmt->closeCursor();
+        $result = -1;
+        if(!empty($deviceId)) {
+            $result = (int)$deviceId[0];
+        }
+        return $result;
+    }
+
+
     public function getDeviceByMac(string $macAddr) : array {
         $sql = 'SELECT * FROM tbDevice WHERE mac_id = ? LIMIT 1';
         $stmt = $this->pdo->prepare($sql);
@@ -120,6 +137,18 @@ class DeviceManager  {
         $stmt->closeCursor();
         return $device;
     }
+
+    public function getDeviceByLogin(string $login) : array {
+        $sql = 'SELECT * FROM tbDevice WHERE login = ? LIMIT 1';
+        $stmt = $this->pdo->prepare($sql);
+        if (!$stmt->execute(array($login))) {
+            throw new IOException("input/output error when trying to getDeviceByLogin");
+        }
+        $device = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->closeCursor();
+        return $device;
+    }
+
 
     public function deleteDevice(array &$device) {
         if(!array_key_exists('id', $device)) {

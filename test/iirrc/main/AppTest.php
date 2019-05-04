@@ -144,7 +144,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $userManager->insertNewUser($this->mockUser);
         $accountManager = new AccountManager($this->app->getContainer()->db);
         $accountManager->setAccount($this->mockUser, new DateTime('now', new DateTimeZone('UTC')), 1);
-        $this->mockDevice = array('mac_id' => 'ABCDE1234567', 'password' => 'FreeLula', 'name' => 'Mock Device', 'model' => 'Fake', 'manufact_dt' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'));
+        $this->mockDevice = array('mac_id' => 'ABCDE1234567', 'login' => 'ABCDE1234567LL', 'password' => 'FreeLula', 'name' => 'Mock Device', 'model' => 'Fake', 'manufact_dt' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'));
         
         $deviceManager = new DeviceManager($this->app->getContainer()->db);
         $deviceManager->insertNewDevice($this->mockDevice);
@@ -211,7 +211,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
 
         $okTest = function(string $url) use ($client) {
             $response = $client->request('GET', $url, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']]]);
+            ['auth' => [$this->mockDevice['login'], $this->mockDevice['password']]]);
             $this->assertTrue($response->getStatusCode() == 200);
         };
  
@@ -219,7 +219,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $okTest($msglogURL);
         try {
             $client->request('GET', $invalidlogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']]]);
+            ['auth' => [$this->mockDevice['login'], $this->mockDevice['password']]]);
             $this->assertTrue(false);
         } catch (ClientException $ex) {
             $this->assertTrue(true);
@@ -235,7 +235,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
         $body = $this->genDataLog($totLines);
         try {
             $response = $client->request('POST', $sendDatalogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']], 
+            ['auth' => [$this->mockDevice['login'], $this->mockDevice['password']], 
              'body' => $body,
              'headers' => ['Content-Type' => 'text/csv']
             ]);
@@ -263,7 +263,7 @@ class AppTest extends \PHPUnit\Framework\TestCase
 
         try {
             $response = $client->request('POST', $sendMesssagelogURL, 
-            ['auth' => [$this->mockDevice['mac_id'], $this->mockDevice['password']], 
+            ['auth' => [$this->mockDevice['login'], $this->mockDevice['password']], 
              'body' => $body,
              'headers' => ['Content-Type' => 'text/csv']
             ]);

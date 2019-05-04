@@ -39,7 +39,7 @@ class UnmodifiableDeviceArray implements ArrayAccess {
         if(!is_string($login)) {
             $login = strval($login);
         }
-        $sql = 'SELECT mac_id FROM tbDevice WHERE mac_id = ? LIMIT 1';
+        $sql = 'SELECT mac_id FROM tbDevice WHERE login = ? LIMIT 1';
         $stmt = $this->pdo->prepare($sql);
         if (!$stmt->execute(array($login))) {
             throw new IOException("input/output error when calling offsetExists");
@@ -52,7 +52,7 @@ class UnmodifiableDeviceArray implements ArrayAccess {
 
     public function offsetGet ( $login ) {
         $result = null;
-        $sql = 'SELECT password FROM tbDevice WHERE mac_id = ? LIMIT 1';
+        $sql = 'SELECT password FROM tbDevice WHERE login = ? LIMIT 1';
         $stmt = $this->pdo->prepare($sql);
         if (!$stmt->execute(array($login))) {
             throw new IOException("input/output error when calling offsetGet");

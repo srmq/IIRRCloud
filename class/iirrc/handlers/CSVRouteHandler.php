@@ -54,9 +54,9 @@ class CSVRouteHandler extends AbstractRouteHandler {
 
     public function handle(Request $request): Response {
         try {
-            $deviceMac = $request->getAttribute(USERNAME_ATTR);
-            if(!isset($deviceMac)) {
-                throw new LogicException("Request does not have device's macaddr");
+            $deviceLogin = $request->getAttribute(USERNAME_ATTR);
+            if(!isset($deviceLogin)) {
+                throw new LogicException("Request does not have device's login");
             }
             $originIP = $request->getAttribute('client-ip');
             if(!isset($originIP)) {
@@ -69,10 +69,10 @@ class CSVRouteHandler extends AbstractRouteHandler {
             $dataToProcess = "";
             $lineNum = 0;
             $deviceManager = new DeviceManager($this->container->db);
-            $device = $deviceManager->getDeviceByMac($deviceMac);
+            $device = $deviceManager->getDeviceByLogin($deviceLogin);
             $deviceId = (int)$device['id'];
             if($deviceId === -1) {
-                throw new LogicException("Could not find device id for macaddr: {$deviceMac}");
+                throw new LogicException("Could not find device id for login: {$deviceLogin}");
             }
             if(!empty($device['tbAccount_tbUser_uid'])) {
                 $accountManager = new AccountManager($this->container->db);

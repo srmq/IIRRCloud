@@ -77,7 +77,7 @@ class App {
             return $pdo;
         };
 
-        $queue[] = (new \Middlewares\BasicAuthentication(new UnmodifiableDeviceArray(App::getContainer()->db)))->attribute(USERNAME_ATTR);
+        $queue[] = (new \Middlewares\DigestAuthentication(new UnmodifiableDeviceArray(App::getContainer()->db)))->attribute(USERNAME_ATTR);
         $queue[] = new \Middlewares\ClientIp();
         $queue[] = new DateAdder();
         $queue[] = new \Middlewares\RequestHandler();
@@ -136,8 +136,8 @@ class App {
                     try {
                         $msgOrLogData = $this->args['type'];
         
-                        $deviceMac = $request->getAttribute(USERNAME_ATTR);
-                        if(!isset($deviceMac)) {
+                        $deviceLogin = $request->getAttribute(USERNAME_ATTR);
+                        if(!isset($deviceLogin)) {
                             throw new LogicException("Request does not have device's macaddr");
                         }
         
@@ -150,10 +150,10 @@ class App {
                         }
         
                         $deviceManager = new DeviceManager(App::getContainer()->db);
-                        $deviceId = $deviceManager->getDeviceId($deviceMac);
+                        $deviceId = $deviceManager->getDeviceIdByLogin($deviceLogin);
                         unset($deviceManager);
                         if($deviceId === -1) {
-                            throw new LogicException("Could not find device id for MAC: {$deviceMac}");
+                            throw new LogicException("Could not find device id for login: {$deviceLogin}");
                         }
                         
                         $params = array();
