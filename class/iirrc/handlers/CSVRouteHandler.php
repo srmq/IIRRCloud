@@ -53,16 +53,20 @@ class CSVRouteHandler extends AbstractRouteHandler {
 
 
     public function handle(Request $request): Response {
+        App::getContainer()->logger->addDebug("Invoked CSVRouteHandler.handle()");
         try {
             $deviceLogin = $request->getAttribute(USERNAME_ATTR);
             if(!isset($deviceLogin)) {
+                App::getContainer()->logger->addDebug("Request does not have device's login, will throw LogicException");
                 throw new LogicException("Request does not have device's login");
             }
             $originIP = $request->getAttribute('client-ip');
             if(!isset($originIP)) {
+                App::getContainer()->logger->addDebug("Request does not have client-ip, will throw LogicException");
                 throw new LogicException("Request does not have origin IP");
             }
             if (!AbstractRouteHandler::isCSVMedia($request)) {
+                App::getContainer()->logger->addDebug("Request Content-type is not CSV, will throw ExpectedCSVBodyException");
                 throw new ExpectedCSVBodyException("Content-type is not CSV");
             }
             $stream = $request->getBody();
@@ -72,18 +76,22 @@ class CSVRouteHandler extends AbstractRouteHandler {
             $device = $deviceManager->getDeviceByLogin($deviceLogin);
             $deviceId = (int)$device['id'];
             if($deviceId === -1) {
+                App::getContainer()->logger->addDebug("Could not find device id for login: {$deviceLogin}, will throw LogicException");
                 throw new LogicException("Could not find device id for login: {$deviceLogin}");
             }
             if(!empty($device['tbAccount_tbUser_uid'])) {
                 $accountManager = new AccountManager($this->container->db);
                 $userAccount = $accountManager->getAccountForUserId((int)$device['tbAccount_tbUser_uid']);
                 if(empty($userAccount)) {
+                    App::getContainer()->logger->addDebug("Device refers to user account that does not exist (id: {$device['tbAccount_tbUser_uid']}), will throw LogicException");
                     throw new LogicException("Reference to user account that do not exist (id: {$device['tbAccount_tbUser_uid']})");
                 }
                 if($accountManager->isAccountExpired($userAccount)) {
+                    App::getContainer()->logger->addDebug("Account expired for device, will throw InvalidUserAccountException");
                     throw new InvalidUserAccountException("Account expired for device");
                 }
             } else {
+                App::getContainer()->logger->addDebug("No user account for device, will throw InvalidUserAccountException");
                 throw new InvalidUserAccountException("No user account for device");
             }
 
@@ -95,24 +103,29 @@ class CSVRouteHandler extends AbstractRouteHandler {
             }
             unset($device);
             unset($deviceManager);
+            App::getContainer()->logger->addDebug("CSVRouteHandler.handle() started processing Request stream");
             while(!$stream->eof()) {
                 $dataChunk = $stream->read(BUFSIZE - strlen($dataToProcess));
                 $dataChunk = strtr($dataChunk, array("\r" => ''));
                 $dataToProcess .= $dataChunk;
+                App::getContainer()->logger->addDebug("Data do process is now: \"{$dataToProcess}\"");
                 unset($dataChunk);
                 while (($nlPos = strpos($dataToProcess, "\n"))) {
                     $lineNum++;
                     if ($lineNum > MAXLINES) {
+                        App::getContainer()->logger->addDebug("More than " . MAXLINES . " in request, will throw InvalidCSVLineException");
                         throw new InvalidCSVLineException("More than " . MAXLINES . " in request", lineNum);
                     }
                     $dataLine = substr($dataToProcess, 0, $nlPos);
                     $parsedData = $this->csvLogger->parseLine($dataLine, $lineNum);
                     if (AbstractRouteHandler::isInTheFuture(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')))) {
+                        App::getContainer()->logger->addDebug("CSV line with date in the future, will throw InvalidCSVLineException");
                         throw new InvalidCSVLineException("Reported date in the future", $lineNum);
                     }
                     if(isset($lastOk)) {
                         $currentMinusLast = (new DateTime($lastOk['reported_ts'], new DateTimeZone('UTC')))->diff(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')));
                         if ($currentMinusLast->invert == 1) {
+                            App::getContainer()->logger->addDebug("CSV Stream with unordered data, will throw InvalidCSVLineException");
                             throw new InvalidCSVLineException("Unordered data", $lineNum);
                         }
                     }
@@ -121,12 +134,14 @@ class CSVRouteHandler extends AbstractRouteHandler {
                         if(!is_null($lastInsertedDB)) {
                             $currentMinusLast = $lastInsertedDB->diff(new DateTime($parsedData['reported_ts'], new DateTimeZone('UTC')));
                             if ($currentMinusLast->invert == 1) {
+                                App::getContainer()->logger->addDebug("CSV Stream with line ts before last inserted data, will throw InvalidCSVLineException");
                                 throw new InvalidCSVLineException("Line ts is before last inserted data", $lineNum);
                             }
                         }
                         $checkLastReported = false;
                     }
                     //$parsedData passed all tests, now insert it to db
+                    App::getContainer()->logger->addDebug("CSV stream line passed tests, will now try to insert it into DB");
                     $this->csvLogger->insertLine($parsedData, $deviceId, $receivedAt, $originIP);
                     
                     $lastOk = $parsedData;
@@ -136,6 +151,7 @@ class CSVRouteHandler extends AbstractRouteHandler {
                     }
                 }
                 if(strlen($dataToProcess) >= BUFSIZE) {
+                    App::getContainer()->logger->addDebug("CSV Stream line is too long, will throw InvalidCSVLineException");
                         throw new InvalidCSVLineException("Line too long", $lineNum);
                 }
             }
