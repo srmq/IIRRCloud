@@ -1,4 +1,13 @@
 RewriteEngine On
+Options +FollowSymLinks
+Options -Indexes
+<IfModule mod_negotiation.c>
+    Options -MultiViews
+</IfModule>
+php_value allow_url_fopen 1
+php_value allow_url_include 1
+RewriteBase /IIRRCloud
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
+

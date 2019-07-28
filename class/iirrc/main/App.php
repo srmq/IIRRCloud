@@ -92,12 +92,13 @@ class App {
             return $logger;
         };
         
-        
         $this->app->get('/hello/{name}', function (Request $request, Response $response, array $args) {    
             $myHandler = new class($args, $response, App::getContainer()) extends AbstractRouteHandler {
         
                 public function handle(Request $request): Response {
+
                     $name = $this->args['name'];
+
                     $this->response->getBody()->write("Hello, $name from " 
                         . $request->getAttribute('client-ip') 
                         . " at " 
