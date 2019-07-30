@@ -79,7 +79,7 @@ class CSVRouteHandler extends AbstractRouteHandler {
                 App::getContainer()->logger->addDebug("Could not find device id for login: {$deviceLogin}, will throw LogicException");
                 throw new LogicException("Could not find device id for login: {$deviceLogin}");
             }
-            if(!empty($device['tbAccount_tbUser_uid'])) {
+            if(!is_null($device['tbAccount_tbUser_uid'])) {
                 $accountManager = new AccountManager($this->container->db);
                 $userAccount = $accountManager->getAccountForUserId((int)$device['tbAccount_tbUser_uid']);
                 if(empty($userAccount)) {
