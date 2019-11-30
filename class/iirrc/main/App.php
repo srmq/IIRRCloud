@@ -91,7 +91,7 @@ class App {
             $logger->pushHandler($file_handler);
             return $logger;
         };
-        
+
         $this->app->get('/hello/{name}', function (Request $request, Response $response, array $args) {    
             $myHandler = new class($args, $response, App::getContainer()) extends AbstractRouteHandler {
         
@@ -111,6 +111,21 @@ class App {
             };
         
             return App::getRelay()->handle($request->withAttribute('request-handler', $myHandler));
+        });
+
+        $this->app->get('/v100/generate_204', function (Request $request, Response $response, array $args) {
+            $uaHeader = 'User-Agent';
+            if($request->hasHeader($uaHeader)) {
+                $ua = $request->getHeader($uaHeader)[0];
+                if(substr( $ua, 0, 4 ) === "IIRR") {
+                    return $response->withStatus(204)
+                            ->withHeader('Content-Length', '0');
+                } else {
+                    return $response->withStatus(404);    
+                }
+            } else {
+                return $response->withStatus(404);
+            }
         });
         
         $this->app->post('/v100/datalog/send', function (Request $request, Response $response, array $args) {
